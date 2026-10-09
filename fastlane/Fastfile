@@ -9,7 +9,7 @@ platform :android do
     gradle(task: ":app:testDebugUnitTest")
   end
 
-  desc "Builds a signed release bundle and uploads it to the Play internal testing track"
+  desc "Builds a signed release bundle and uploads it to the Play internal testing track as a draft"
   lane :internal do
     gradle(
       task: ":app:bundleRelease",
@@ -20,12 +20,11 @@ platform :android do
       track: "internal",
       aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
       json_key_data: ENV.fetch("PLAY_SERVICE_ACCOUNT_JSON"),
-      # "completed" sends the build straight to internal testers. Google only
-      # allows "draft" while the app itself is still a draft in Play Console
-      # (it has never been through review); set the PLAY_RELEASE_STATUS
-      # repository variable to "draft" until then, and roll each build out by
-      # hand in the console.
-      release_status: ENV.fetch("PLAY_RELEASE_STATUS", "completed"),
+      # Always a draft, on purpose: CI gets the build into Play Console, and a
+      # person decides when testers receive it (Internal testing > Edit
+      # release > Start rollout). It is also the only status Google accepts
+      # while the app has never been through review.
+      release_status: "draft",
       # This lane ships a binary. The store listing is edited in Play Console.
       skip_upload_metadata: true,
       skip_upload_changelogs: true,

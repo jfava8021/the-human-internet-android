@@ -1,4 +1,6 @@
-# Push to main -> signed release bundle -> Google Play internal testing track.
+# Push to main -> signed release bundle -> a DRAFT release on the Google Play
+# internal testing track. Rolling it out to testers is a manual step in Play
+# Console, by design.
 # The Android counterpart of the iOS repo's TestFlight workflow.
 #
 # NEVER add a `pull_request` trigger (and above all not `pull_request_target`)
@@ -53,7 +55,6 @@ jobs:
       PLAY_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
       PLAY_UPLOAD_KEY_ALIAS: ${{ secrets.PLAY_UPLOAD_KEY_ALIAS }}
       PLAY_UPLOAD_KEY_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEY_PASSWORD }}
-      PLAY_RELEASE_STATUS: ${{ vars.PLAY_RELEASE_STATUS || 'completed' }}
       FASTLANE_SKIP_UPDATE_CHECK: "1"
       FASTLANE_HIDE_CHANGELOG: "1"
 
@@ -91,5 +92,5 @@ jobs:
       - name: Run the unit tests
         run: bundle exec fastlane android tests
 
-      - name: Build and upload to internal testing
+      - name: Build and upload a draft to internal testing
         run: bundle exec fastlane android internal
