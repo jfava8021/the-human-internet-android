@@ -9,22 +9,36 @@ platform :android do
     gradle(task: ":app:testDebugUnitTest")
   end
 
-  desc "Builds a signed release bundle and uploads it to the Play internal testing track as a draft"
+  desc "Builds a signed release bundle and rolls it out to the Play internal testing track"
   lane :internal do
     gradle(
       task: ":app:bundleRelease",
       properties: { "versionCode" => ENV.fetch("VERSION_CODE") }
     )
 
+    # Rolled out to internal testers straight away, like a TestFlight build.
+    # Internal testing only ever reaches the testers listed in Play Console;
+    # promoting a build to production is always a manual step there.
+    begin
+      upload_to_internal_testing(release_status: "completed")
+    rescue => error
+      # Until an app has been through Google's first review it is a "draft
+      # app", and the API accepts nothing but draft releases for it. Fall back
+      # to one rather than failing; it then needs Start rollout in Play
+      # Console. Stops happening by itself once the app is reviewed.
+      raise unless error.message.include?("Only releases with status draft")
+      UI.important("Play still treats this app as a draft, so the build was uploaded as a draft release. " \
+                   "Roll it out by hand: Play Console > Testing > Internal testing > Start rollout.")
+      upload_to_internal_testing(release_status: "draft")
+    end
+  end
+
+  private_lane :upload_to_internal_testing do |options|
     upload_to_play_store(
       track: "internal",
       aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
       json_key_data: ENV.fetch("PLAY_SERVICE_ACCOUNT_JSON"),
-      # Always a draft, on purpose: CI gets the build into Play Console, and a
-      # person decides when testers receive it (Internal testing > Edit
-      # release > Start rollout). It is also the only status Google accepts
-      # while the app has never been through review.
-      release_status: "draft",
+      release_status: options[:release_status],
       # This lane ships a binary. The store listing is edited in Play Console.
       skip_upload_metadata: true,
       skip_upload_changelogs: true,

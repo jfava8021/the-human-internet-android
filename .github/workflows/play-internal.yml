@@ -1,6 +1,6 @@
-# Push to main -> signed release bundle -> a DRAFT release on the Google Play
-# internal testing track. Rolling it out to testers is a manual step in Play
-# Console, by design.
+# Push to main -> signed release bundle -> rolled out to the Google Play
+# internal testing track, where the listed testers get it within minutes.
+# Promoting a build to production is always a manual step in Play Console.
 # The Android counterpart of the iOS repo's TestFlight workflow.
 #
 # NEVER add a `pull_request` trigger (and above all not `pull_request_target`)
@@ -92,5 +92,5 @@ jobs:
       - name: Run the unit tests
         run: bundle exec fastlane android tests
 
-      - name: Build and upload a draft to internal testing
+      - name: Build and roll out to internal testing
         run: bundle exec fastlane android internal
