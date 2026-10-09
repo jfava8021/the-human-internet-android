@@ -3,6 +3,7 @@ package com.thehumaninternet.app
 import android.app.Application
 import com.thehumaninternet.app.models.AppState
 import com.thehumaninternet.app.uploads.PhotoUploadQueue
+import com.thehumaninternet.app.verification.PlayIntegrityService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,5 +21,6 @@ class HumanInternetApp : Application() {
     override fun onCreate() {
         super.onCreate()
         PhotoUploadQueue.initialize(this)
+        PlayIntegrityService.initialize(this)
     }
 }

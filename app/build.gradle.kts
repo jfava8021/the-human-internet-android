@@ -1,7 +1,18 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+}
+
+// The upload key for Google Play. `keystore.properties` and the keystore it
+// points at are deliberately not in the repo; without them a release build is
+// signed with the debug key, which is enough to smoke-test the shrunk build
+// locally but which Play will not accept.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use(::load)
 }
 
 android {
@@ -17,6 +28,26 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
+    }
+
+    signingConfigs {
+        if (!keystoreProperties.isEmpty) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+        }
     }
 
     buildFeatures {
@@ -58,6 +89,7 @@ dependencies {
     implementation(libs.supabase.functions)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.play.integrity)
 
     testImplementation(libs.junit)
 }

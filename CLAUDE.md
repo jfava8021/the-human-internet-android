@@ -27,7 +27,11 @@ Until Stripe Identity is ported, onboarding's verify step is passed through exac
 ## Differences from iOS that matter
 
 - **Sign in with Google, not Apple** (`auth/GoogleAuthService.kt`). It runs Supabase's OAuth flow in the browser and returns to `thehumaninternet://login-callback`. An Apple sign-in and a Google sign-in are the same account only if Supabase links them by verified email — an iOS user who chose "Hide My Email" gets a second, separate account on Android.
-- **Signing requests are unattested.** iOS sends an App Attest assertion with every `sign-photo` call; Android has no equivalent yet. The equivalent is Play Integrity, and it needs a verifier added to the backend as well as client code here. **Do not set the `require_app_attest` flag to `all` until that exists — it would stop every Android upload.** Until then, anyone with a session token can get arbitrary bytes signed through this path, which is the hole App Attest closed on iOS.
+- **Signing requests are attested with Play Integrity, not App Attest** (`verification/PlayIntegrityService.kt`). For each photo the app asks Google Play for a token bound to SHA-256 of the exact bytes, and sends it as `X-Play-Integrity-Token`; `sign-photo` has Google decode it (the backend's `_shared/playIntegrity.ts`). The same `require_app_attest` flag governs both platforms. Things to know:
+  - **It is off until `cloudProjectNumber` in `PlayIntegrityService` is set** to the number of the Google Cloud project linked in Play Console → App integrity. While it's 0 every request goes unattested and, with the flag at `all`, is refused (`attestation_required`) — which is the state as of 2026-10-09.
+  - **Only a build installed from Google Play, on a real phone, passes.** A debug build, a build installed over USB, and anything on the emulator get a real token that Google marks unrecognized, and the server refuses it — for admins too; there is deliberately no development exemption. So with the flag on, uploads can't be tested from Android Studio or the emulator: ship a build to a Play testing track (Android's TestFlight) and test on a phone. Everything before the signing call still works locally.
+  - Like App Attest it never blocks an upload by itself: any failure to get a token sends the request unattested and the server decides.
+  - The request-hash encoding is shared with the backend; `PlayIntegrityRequestHashTest` and the backend's `playIntegrity_test.ts` pin the same vector.
 - **`HumanUser.socialLinks` is raw JSON**, not a typed list. Every profile save writes the whole row back (as on iOS), and this build has no editor for the handles, so it passes them through untouched rather than risk dropping one it doesn't recognise.
 - **Ids are lowercase UUID strings**, not a UUID type — that's how supabase-kt and Postgres both render them.
 - **The provisional watermark is drawn into the decoded bitmap**, not overlaid as a separate view. Same artwork, same `markRect`.
@@ -79,6 +83,7 @@ Open the folder in Android Studio, or from a terminal:
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ./gradlew :app:assembleDebug        # build
 ./gradlew :app:testDebugUnitTest    # unit tests
+./gradlew :app:bundleRelease        # the .aab Google Play takes
 ```
 
 The emulator has a virtual camera, so capture works there, unlike the iOS Simulator.
@@ -86,8 +91,8 @@ The emulator has a virtual camera, so capture works there, unlike the iOS Simula
 ## Known gaps / to do
 
 1. **Open-source licence notices (not done — required before any public release).** The app bundles third-party code whose licences (Apache 2.0, MIT, SIL OFL) require their notices to ship with it: Kotlin, Jetpack/AndroidX and Compose, CameraX, supabase-kt, Ktor, kotlinx.serialization and coroutines, OkHttp, and the Inter Display font. It needs a "Licences" screen in Settings; Google's `oss-licenses` Gradle plugin can generate the list. Only the Inter licence text is in the repo so far (`licenses/`), and it is not yet shown in-app. **The iOS app has the same gap** (supabase-swift, c2pa-swift, the New Relic agent) — do both together.
-2. **Play Integrity** for signing requests — see "Differences from iOS".
+2. **Play Integrity is written but not switched on.** Outstanding, in order: a Play Console account with the app created and a build on the internal testing track; a Cloud project linked under App integrity with the Play Integrity API enabled; a service account key set as the backend's `PLAY_INTEGRITY_SERVICE_ACCOUNT` secret; the backend's `play-integrity` branch deployed; `cloudProjectNumber` set here. None of it has run against Google yet.
 3. **Sign-in button artwork.** The button is plain text; Google's branding guidelines call for their logo on it.
 4. **Uploads only run while the app is alive.** They resume on next launch, as on iOS, but Android can do better with WorkManager.
-5. **Release build config**: no signing config, R8/minification off (the debug APK is ~85 MB largely because of the unshrunk Material icon set), no CI.
+5. **Release builds** are shrunk with R8 (~6.5 MB against ~85 MB for debug) and signed with the upload key named in `keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`) — a file that is deliberately not in the repo and doesn't exist yet. Without it a release build falls back to the debug key, fine for a local smoke test, rejected by Play. `versionCode` is bumped by hand; there is no CI.
 6. Everything under "Not ported yet".

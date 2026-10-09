@@ -6,6 +6,7 @@ object Log {
     val onboarding = Category("onboarding")
     val camera = Category("camera")
     val uploads = Category("uploads")
+    val attestation = Category("attestation")
     val photos = Category("photos")
     val sharing = Category("sharing")
     val settings = Category("settings")

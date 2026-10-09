@@ -28,11 +28,8 @@ sealed class RemotePhotoSignerException(message: String) : Exception(message) {
  * held in KMS. There is no on-device fallback — if `sign-photo` is down,
  * uploads fail and retry.
  *
- * **Requests from this app are unattested.** The iOS app sends an App Attest
- * assertion with each request; Android has no equivalent wired up yet (it
- * would be Play Integrity, plus a verifier in the backend). `sign-photo` signs
- * unattested requests only while the `require_app_attest` flag is off for the
- * user, so switching that flag to `all` stops every Android upload.
+ * Each request carries a Play Integrity token over the exact bytes sent, when
+ * this device can produce one — see [PlayIntegrityService].
  */
 object RemotePhotoSigner {
     /** Request header opting into the capture pipeline, echoed back by a backend that ran it. */
@@ -60,12 +57,15 @@ object RemotePhotoSigner {
     /** JPEG in, the same JPEG signed as a `digitalCapture` out. */
     suspend fun sign(imageData: ByteArray): ByteArray = invoke(imageData).nonEmptyBody()
 
-    private suspend fun invoke(body: ByteArray, configure: HttpRequestBuilder.() -> Unit = {}): HttpResponse =
-        supabase.functions.invoke("sign-photo") {
+    private suspend fun invoke(body: ByteArray, configure: HttpRequestBuilder.() -> Unit = {}): HttpResponse {
+        val attestation = PlayIntegrityService.headers(attesting = body)
+        return supabase.functions.invoke("sign-photo") {
+            attestation.forEach { (name, value) -> header(name, value) }
             configure()
             contentType(ContentType.Application.OctetStream)
             setBody(body)
         }
+    }
 
     private suspend fun HttpResponse.nonEmptyBody(): ByteArray =
         body<ByteArray>().also { if (it.isEmpty()) throw RemotePhotoSignerException.EmptyResponse() }
