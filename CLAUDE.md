@@ -88,11 +88,23 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 
 The emulator has a virtual camera, so capture works there, unlike the iOS Simulator.
 
+## Shipping (Play internal testing)
+
+Pushing to `main` runs the unit tests, builds a signed release bundle and uploads it to the **internal testing** track in Google Play Console — GitHub Actions (`ubuntu-latest`) → `fastlane android internal` → Play. The Android counterpart of the iOS repo's TestFlight pipeline. `.github/workflows/tests.yml` separately runs the unit tests on every pull request, with no secrets.
+
+- **Never add a `pull_request` trigger to `play-internal.yml`.** The repo is public and that job holds the upload key and the Play publishing credentials.
+- **Five repository secrets drive it**: `PLAY_UPLOAD_KEYSTORE_BASE64` (the upload keystore, base64), `PLAY_UPLOAD_KEYSTORE_PASSWORD`, `PLAY_UPLOAD_KEY_ALIAS`, `PLAY_UPLOAD_KEY_PASSWORD`, and `PLAY_SERVICE_ACCOUNT_JSON` (a Google Cloud service account key that has been invited in Play Console → Users and permissions with release rights, with the Google Play Android Developer API enabled in its project). While the keystore or the service account is missing the workflow **skips with a warning** instead of failing, which is also what a fork gets.
+- **Signing reads the same four values from two places** (`app/build.gradle.kts`): `keystore.properties` locally, `PLAY_UPLOAD_*` environment variables on CI. Neither the keystore nor that file is ever committed. With neither, a release build falls back to the debug key — fine for a local smoke test, rejected by Play.
+- **The version code is the workflow run number + 100**, passed as `-PversionCode`. The offset keeps CI above the build that had to be uploaded by hand. **Re-running a finished run reuses its number, which Play rejects as a duplicate — push a new commit instead.** `versionName` is still edited by hand in `app/build.gradle.kts`.
+- **Google's API cannot do an app's first upload.** One build has to go up through the Play Console website before CI can publish anything; until then the upload step fails with a "package not found" error.
+- **While the app is still a draft in Play Console** (never been through review), the API only accepts draft releases and fails with "Only releases with status draft may be created on draft app". Set the repository *variable* `PLAY_RELEASE_STATUS` to `draft` until then and roll each build out by hand; remove it afterwards and builds go straight to testers.
+- Release builds are shrunk with R8 (~6.5 MB APK against ~85 MB for debug). Nothing app-specific is in `proguard-rules.pro`; if a library starts failing only in release builds, that is where the fix goes.
+
 ## Known gaps / to do
 
 1. **Open-source licence notices (not done — required before any public release).** The app bundles third-party code whose licences (Apache 2.0, MIT, SIL OFL) require their notices to ship with it: Kotlin, Jetpack/AndroidX and Compose, CameraX, supabase-kt, Ktor, kotlinx.serialization and coroutines, OkHttp, and the Inter Display font. It needs a "Licences" screen in Settings; Google's `oss-licenses` Gradle plugin can generate the list. Only the Inter licence text is in the repo so far (`licenses/`), and it is not yet shown in-app. **The iOS app has the same gap** (supabase-swift, c2pa-swift, the New Relic agent) — do both together.
 2. **Play Integrity is written but not switched on.** Outstanding, in order: a Play Console account with the app created and a build on the internal testing track; a Cloud project linked under App integrity with the Play Integrity API enabled; a service account key set as the backend's `PLAY_INTEGRITY_SERVICE_ACCOUNT` secret; the backend's `play-integrity` branch deployed; `cloudProjectNumber` set here. None of it has run against Google yet.
 3. **Sign-in button artwork.** The button is plain text; Google's branding guidelines call for their logo on it.
 4. **Uploads only run while the app is alive.** They resume on next launch, as on iOS, but Android can do better with WorkManager.
-5. **Release builds** are shrunk with R8 (~6.5 MB against ~85 MB for debug) and signed with the upload key named in `keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`) — a file that is deliberately not in the repo and doesn't exist yet. Without it a release build falls back to the debug key, fine for a local smoke test, rejected by Play. `versionCode` is bumped by hand; there is no CI.
+5. **CI is written but has never uploaded a build** — see "Shipping". It needs the five secrets, and Google requires the app's first build to be uploaded by hand.
 6. Everything under "Not ported yet".

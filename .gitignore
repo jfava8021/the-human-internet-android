@@ -13,3 +13,6 @@ captures/
 *.jks
 *.keystore
 keystore.properties
+vendor/bundle/
+fastlane/report.xml
+fastlane/README.md

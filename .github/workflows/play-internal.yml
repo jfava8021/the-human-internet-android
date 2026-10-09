@@ -1,0 +1,95 @@
+# Push to main -> signed release bundle -> Google Play internal testing track.
+# The Android counterpart of the iOS repo's TestFlight workflow.
+#
+# NEVER add a `pull_request` trigger (and above all not `pull_request_target`)
+# to this file. The repo is public and this job holds the upload key and the
+# Play publishing credentials. PR-time checks live in tests.yml, which has no
+# secrets.
+#
+# Re-running a finished run reuses its run number, and so its version code,
+# which Play rejects as a duplicate. Push a new commit instead.
+
+name: Play internal testing
+
+on:
+  push:
+    branches: [main]
+
+# Never let two uploads race; queue instead of cancelling, so a superseded
+# run still finishes.
+concurrency:
+  group: play-internal
+  cancel-in-progress: false
+
+jobs:
+  # Forks, and this repo before its secrets are set, have nothing to sign or
+  # upload with. Skip with a warning rather than failing every push.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.secrets.outputs.ready }}
+    steps:
+      - name: Check that the signing and upload secrets exist
+        id: secrets
+        env:
+          KEYSTORE: ${{ secrets.PLAY_UPLOAD_KEYSTORE_BASE64 }}
+          SERVICE_ACCOUNT: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$KEYSTORE" ] && [ -n "$SERVICE_ACCOUNT" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Play secrets are not set, so nothing was built or uploaded. See CLAUDE.md > Shipping."
+          fi
+
+  internal:
+    needs: check
+    if: needs.check.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      PLAY_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
+      PLAY_UPLOAD_KEY_ALIAS: ${{ secrets.PLAY_UPLOAD_KEY_ALIAS }}
+      PLAY_UPLOAD_KEY_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEY_PASSWORD }}
+      PLAY_RELEASE_STATUS: ${{ vars.PLAY_RELEASE_STATUS || 'completed' }}
+      FASTLANE_SKIP_UPDATE_CHECK: "1"
+      FASTLANE_HIDE_CHANGELOG: "1"
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Ruby and install fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      # Offset by 100 so CI's first build is above the version code of the
+      # build that had to be uploaded to Play Console by hand.
+      - name: Derive the version code
+        run: echo "VERSION_CODE=$((GITHUB_RUN_NUMBER + 100))" >> "$GITHUB_ENV"
+
+      - name: Restore the upload keystore
+        env:
+          KEYSTORE: ${{ secrets.PLAY_UPLOAD_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          echo "PLAY_UPLOAD_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+
+      - name: Run the unit tests
+        run: bundle exec fastlane android tests
+
+      - name: Build and upload to internal testing
+        run: bundle exec fastlane android internal

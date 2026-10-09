@@ -1,0 +1,36 @@
+# Lanes for the Android app. CI runs `internal` on every push to main
+# (.github/workflows/play-internal.yml); see CLAUDE.md > "Shipping".
+
+default_platform(:android)
+
+platform :android do
+  desc "Runs the unit tests"
+  lane :tests do
+    gradle(task: ":app:testDebugUnitTest")
+  end
+
+  desc "Builds a signed release bundle and uploads it to the Play internal testing track"
+  lane :internal do
+    gradle(
+      task: ":app:bundleRelease",
+      properties: { "versionCode" => ENV.fetch("VERSION_CODE") }
+    )
+
+    upload_to_play_store(
+      track: "internal",
+      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      json_key_data: ENV.fetch("PLAY_SERVICE_ACCOUNT_JSON"),
+      # "completed" sends the build straight to internal testers. Google only
+      # allows "draft" while the app itself is still a draft in Play Console
+      # (it has never been through review); set the PLAY_RELEASE_STATUS
+      # repository variable to "draft" until then, and roll each build out by
+      # hand in the console.
+      release_status: ENV.fetch("PLAY_RELEASE_STATUS", "completed"),
+      # This lane ships a binary. The store listing is edited in Play Console.
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+end

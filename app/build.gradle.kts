@@ -6,14 +6,20 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-// The upload key for Google Play. `keystore.properties` and the keystore it
-// points at are deliberately not in the repo; without them a release build is
-// signed with the debug key, which is enough to smoke-test the shrunk build
-// locally but which Play will not accept.
+// The upload key for Google Play. Neither the keystore nor its passwords are
+// in the repo: locally they come from `keystore.properties`, on CI from the
+// environment (see .github/workflows/play-internal.yml). With neither, a
+// release build is signed with the debug key — enough to smoke-test the
+// shrunk build locally, but Play will not accept it.
 val keystoreProperties = Properties().apply {
     val file = rootProject.file("keystore.properties")
     if (file.exists()) file.inputStream().use(::load)
 }
+
+fun uploadKey(property: String, environment: String): String? =
+    keystoreProperties.getProperty(property) ?: System.getenv(environment)
+
+val uploadKeystore = uploadKey("storeFile", "PLAY_UPLOAD_KEYSTORE_FILE")
 
 android {
     namespace = "com.thehumaninternet.app"
@@ -26,17 +32,19 @@ android {
         // collection needs no storage permission (see PhotoLibrarySaver).
         minSdk = 29
         targetSdk = 37
-        versionCode = 1
+        // CI passes -PversionCode, derived from the workflow run number, so
+        // every upload to Play is higher than the last.
+        versionCode = providers.gradleProperty("versionCode").map(String::toInt).getOrElse(1)
         versionName = "0.1.0"
     }
 
     signingConfigs {
-        if (!keystoreProperties.isEmpty) {
+        if (uploadKeystore != null) {
             create("release") {
-                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
-                storePassword = keystoreProperties.getProperty("storePassword")
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = rootProject.file(uploadKeystore)
+                storePassword = uploadKey("storePassword", "PLAY_UPLOAD_KEYSTORE_PASSWORD")
+                keyAlias = uploadKey("keyAlias", "PLAY_UPLOAD_KEY_ALIAS")
+                keyPassword = uploadKey("keyPassword", "PLAY_UPLOAD_KEY_PASSWORD")
             }
         }
     }

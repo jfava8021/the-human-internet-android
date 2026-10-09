@@ -1,0 +1,29 @@
+# Unit tests on every pull request and every push to main. Holds no secrets,
+# so it is safe to run on contributions from forks.
+
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run the unit tests
+        run: ./gradlew :app:testDebugUnitTest
