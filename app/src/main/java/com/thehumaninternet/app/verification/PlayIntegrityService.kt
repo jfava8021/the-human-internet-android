@@ -49,10 +49,11 @@ object PlayIntegrityService {
 
     /**
      * The **number** (not the id) of the Google Cloud project linked to this
-     * app in Play Console → App integrity. Not a secret. While it's 0, Play
-     * Integrity is off and every request goes unattested.
+     * app in Play Console → App integrity — "The Human Internet Android". Not
+     * a secret. Set to 0 to turn Play Integrity off, which sends every
+     * request unattested.
      */
-    private val cloudProjectNumber: Long = 0L
+    private val cloudProjectNumber: Long = 92493927984L
 
     private lateinit var appContext: Context
 
