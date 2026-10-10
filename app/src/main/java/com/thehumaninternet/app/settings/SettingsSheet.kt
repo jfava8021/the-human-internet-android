@@ -30,6 +30,9 @@ import com.thehumaninternet.app.models.PrivacyLevel
 import com.thehumaninternet.app.supabase.UserProfileRepository
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
+import com.thehumaninternet.app.designsystem.DesignTokens
+import com.thehumaninternet.app.designsystem.LabelValue
+import androidx.compose.foundation.layout.defaultMinSize
 
 /**
  * The minimum a first build needs: who you're signed in as, the privacy
@@ -77,19 +80,16 @@ fun SettingsSheet(onDismiss: () -> Unit) {
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Theme.background) {
         Column(
-            modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(horizontal = DesignTokens.Space.S6).padding(bottom = DesignTokens.Space.S6),
+            verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S4),
         ) {
-            Text("Settings", style = Theme.font(20, FontWeight.Bold), color = Theme.textPrimary)
+            Text("Settings", style = Theme.type.h3, color = Theme.foreground)
 
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                FieldLabel("Username")
-                Text(appState.user.username.ifEmpty { "You" }, style = Theme.font(16), color = Theme.textPrimary)
-            }
+            LabelValue("Username", appState.user.username.ifEmpty { "You" })
 
-            HorizontalDivider(color = Theme.divider)
+            HorizontalDivider(color = Theme.border)
 
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S1)) {
                 FieldLabel("Privacy")
                 RadioRow(
                     title = PrivacyLevel.PUBLIC.rawValue,
@@ -105,17 +105,18 @@ fun SettingsSheet(onDismiss: () -> Unit) {
                 )
             }
 
-            HorizontalDivider(color = Theme.divider)
+            HorizontalDivider(color = Theme.border)
 
             // A plain row with no fill, on purpose — as on iOS.
             Text(
-                "Log Out",
-                style = Theme.font(16, FontWeight.Medium),
-                color = Theme.ctaForeground,
+                "Log out",
+                style = Theme.type.body,
+                color = Theme.foreground,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .defaultMinSize(minHeight = DesignTokens.Size.MinTouch)
                     .clickable(role = Role.Button) { showLogOutConfirmation = true }
-                    .padding(vertical = 10.dp),
+                    .padding(vertical = DesignTokens.Space.S3),
             )
         }
     }
@@ -123,15 +124,15 @@ fun SettingsSheet(onDismiss: () -> Unit) {
     if (showLogOutConfirmation) {
         AlertDialog(
             onDismissRequest = { showLogOutConfirmation = false },
-            title = { Text("Log out?", style = Theme.font(18, FontWeight.SemiBold)) },
+            title = { Text("Log out?", style = Theme.type.title) },
             text = {
                 Text(
                     "Photos that haven't finished uploading will be removed from this device.",
-                    style = Theme.font(14),
+                    style = Theme.type.body,
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showLogOutConfirmation = false; onDismiss(); logOut() }) { Text("Log Out") }
+                TextButton(onClick = { showLogOutConfirmation = false; onDismiss(); logOut() }) { Text("Log out") }
             },
             dismissButton = { TextButton(onClick = { showLogOutConfirmation = false }) { Text("Cancel") } },
             containerColor = Theme.background,
@@ -142,8 +143,8 @@ fun SettingsSheet(onDismiss: () -> Unit) {
         AlertDialog(
             onDismissRequest = { errorMessage = null },
             confirmButton = { TextButton(onClick = { errorMessage = null }) { Text("OK") } },
-            title = { Text("Something went wrong", style = Theme.font(18, FontWeight.SemiBold)) },
-            text = { Text(errorMessage ?: "", style = Theme.font(14)) },
+            title = { Text("Something went wrong.", style = Theme.type.title) },
+            text = { Text(errorMessage ?: "", style = Theme.type.body) },
             containerColor = Theme.background,
         )
     }

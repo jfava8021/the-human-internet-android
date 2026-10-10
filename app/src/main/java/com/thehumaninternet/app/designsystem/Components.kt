@@ -8,17 +8,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.RadioButtonChecked
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.RadioButtonChecked
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -28,99 +28,109 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.thehumaninternet.app.R
 
-/** A text CTA in the given role. Pass `Modifier.weight(1f)` to pair two in a row. */
+/*
+ * Buttons and fields, built on BrandComponents.kt. Every value comes from
+ * DesignTokens / Theme.
+ */
+
+/** A full-width pill in the given CTA role. Pass `Modifier.weight(1f)` to pair two in a row. */
 @Composable
 fun CtaButton(
     title: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier.fillMaxWidth(),
-    role: CTARole = CTARole.PRIMARY,
+    role: CtaRole = CtaRole.Primary,
     enabled: Boolean = true,
 ) {
-    val shape = RoundedCornerShape(Theme.cornerRadius)
-    Box(
-        modifier = modifier
-            .alpha(if (enabled) 1f else 0.5f)
-            .clip(shape)
-            .background(role.background)
-            .border(1.dp, role.outline, shape)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(vertical = 14.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(title, style = Theme.font(16, FontWeight.SemiBold), color = role.foreground)
-    }
+    HumanButton(text = title, onClick = onClick, modifier = modifier, role = role, enabled = enabled)
 }
 
-/** An icon-only CTA: the glyph centred on a circle in the given role. */
+/** Where an icon-only button sits. Either way it's a 48dp circle with one outlined icon. */
+enum class IconSurface {
+    /** Light grey on the white page. */
+    Page,
+
+    /** White, for a button over a photo or the live camera feed. */
+    Media,
+}
+
+/** An icon-only CTA: the glyph centred on a 48dp circle. Always give it a content description. */
 @Composable
 fun CtaIcon(
     icon: ImageVector,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    role: CTARole = CTARole.PRIMARY,
-    diameter: Dp = 36.dp,
-    iconSize: Dp = diameter * 0.5f,
+    surface: IconSurface = IconSurface.Page,
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
 ) {
     Box(
         modifier = modifier
-            .size(diameter)
+            .size(DesignTokens.Size.IconButton)
             .clip(CircleShape)
-            .background(role.background)
-            .border(1.dp, role.outline, CircleShape)
+            .background(if (surface == IconSurface.Page) Theme.surface else Theme.background)
             .then(
                 if (onClick != null) Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
                 else Modifier
-            ),
+            )
+            .alpha(if (enabled) 1f else 0.5f),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription, tint = role.foreground, modifier = Modifier.size(iconSize))
+        Icon(icon, contentDescription, tint = Theme.foreground, modifier = Modifier.size(DesignTokens.Size.Icon))
     }
 }
 
+/** Grey field, no stroke. Pass [error] to outline it and show the message below. */
 @Composable
 fun HITextField(
     placeholder: String,
     text: String,
     onTextChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    error: String? = null,
 ) {
-    val shape = RoundedCornerShape(10.dp)
-    BasicTextField(
-        value = text,
-        onValueChange = onTextChange,
-        singleLine = true,
-        textStyle = Theme.font(17).copy(color = Theme.textPrimary),
-        cursorBrush = SolidColor(Theme.textPrimary),
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(Theme.surface)
-            .border(1.dp, Theme.divider, shape)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        decorationBox = { field ->
-            if (text.isEmpty()) {
-                Text(placeholder, style = Theme.font(17), color = Theme.placeholder)
-            }
-            field()
-        },
-    )
+    val shape = RoundedCornerShape(DesignTokens.Radius.Md)
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S2)) {
+        BasicTextField(
+            value = text,
+            onValueChange = onTextChange,
+            singleLine = true,
+            textStyle = Theme.type.body.copy(color = Theme.foreground),
+            cursorBrush = SolidColor(Theme.foreground),
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = DesignTokens.Size.ControlHeight)
+                .clip(shape)
+                .background(Theme.surface)
+                .then(if (error != null) Modifier.border(1.dp, Theme.destructive, shape) else Modifier)
+                .padding(horizontal = DesignTokens.Space.S4),
+            decorationBox = { field ->
+                Box(Modifier.defaultMinSize(minHeight = DesignTokens.Size.ControlHeight), contentAlignment = Alignment.CenterStart) {
+                    if (text.isEmpty()) {
+                        Text(placeholder, style = Theme.type.body, color = Theme.subtleForeground)
+                    }
+                    field()
+                }
+            },
+        )
+        if (error != null) {
+            Text(error, style = Theme.type.label, color = Theme.destructive)
+        }
+    }
 }
 
 @Composable
 fun FieldLabel(text: String) {
-    Text(text, style = Theme.font(13, FontWeight.Medium), color = Theme.textSecondary)
+    Text(text, style = Theme.type.label, color = Theme.mutedForeground)
 }
 
 @Composable
@@ -128,39 +138,55 @@ fun RadioRow(title: String, isSelected: Boolean, onClick: () -> Unit, subtitle: 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .defaultMinSize(minHeight = DesignTokens.Size.MinTouch)
             .clickable(role = Role.RadioButton, onClick = onClick)
-            .padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(vertical = DesignTokens.Space.S1),
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.Space.S3),
     ) {
         Icon(
-            if (isSelected) Icons.Filled.RadioButtonChecked else Icons.Filled.RadioButtonUnchecked,
+            if (isSelected) Icons.Outlined.RadioButtonChecked else Icons.Outlined.RadioButtonUnchecked,
             contentDescription = null,
-            tint = Theme.selection,
+            tint = Theme.foreground,
         )
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = Theme.font(15, FontWeight.Medium), color = Theme.textPrimary)
+        Column {
+            Text(title, style = Theme.type.body, color = Theme.foreground)
             if (subtitle != null) {
-                Text(subtitle, style = Theme.font(12), color = Theme.textSecondary)
+                Text(subtitle, style = Theme.type.label, color = Theme.mutedForeground)
             }
         }
     }
 }
 
 /**
- * The logo. Drawn from the same artwork as the photo watermark, so the two
- * can't drift apart.
+ * The spiral "imprint" — the only way the app says *verified*. The vector
+ * `ic_brand_mark`, the same artwork as the website's public/brand/mark.svg,
+ * tinted to [color]: black on the page, white over a photo.
+ *
+ * Not the watermark: that is `brand_mark_watermark`, a PNG shared with the
+ * signing Lambda — see `PhotoWatermarker`.
  */
 @Composable
-fun BrandMark(width: Dp = 60.dp, modifier: Modifier = Modifier) {
+fun BrandMark(size: Dp = DesignTokens.Size.Icon, modifier: Modifier = Modifier, color: Color = Theme.foreground) {
     Image(
-        painter = painterResource(R.drawable.brand_mark_watermark),
+        painter = painterResource(R.drawable.ic_brand_mark),
         contentDescription = null,
-        // The artwork is 1024×860.
-        modifier = modifier.width(width).aspectRatio(1024f / 860f),
+        modifier = modifier.height(size),
+        colorFilter = ColorFilter.tint(color),
+    )
+}
+
+/** "the human ~ internet". Always lowercase, never re-set in type. */
+@Composable
+fun Wordmark(height: Dp = DesignTokens.Space.S4, modifier: Modifier = Modifier, color: Color = Theme.foreground) {
+    Image(
+        painter = painterResource(R.drawable.ic_wordmark),
+        contentDescription = "the human internet",
+        modifier = modifier.height(height),
+        colorFilter = ColorFilter.tint(color),
     )
 }
 
 @Composable
-fun Spinner(modifier: Modifier = Modifier, color: Color = Theme.textPrimary, diameter: Dp = 28.dp) {
-    CircularProgressIndicator(modifier = modifier.size(diameter), color = color, strokeWidth = 2.5.dp)
+fun Spinner(modifier: Modifier = Modifier, color: Color = Theme.foreground, diameter: Dp = DesignTokens.Space.S6) {
+    CircularProgressIndicator(modifier = modifier.size(diameter), color = color, strokeWidth = 2.dp)
 }

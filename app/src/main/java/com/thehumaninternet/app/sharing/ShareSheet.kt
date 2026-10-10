@@ -17,13 +17,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Camera
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Forum
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.outlined.Camera
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.Sms
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -64,6 +64,10 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
 import kotlin.coroutines.cancellation.CancellationException
+import com.thehumaninternet.app.designsystem.DesignTokens
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextOverflow
 
 /** How a destination is reached — decided by what that platform can actually accept. */
 private sealed interface ShareKind {
@@ -84,11 +88,11 @@ private sealed interface ShareKind {
 private data class ShareOption(val label: String, val icon: ImageVector, val kind: ShareKind)
 
 private val shareOptions = listOf(
-    ShareOption("Instagram", Icons.Filled.Camera, ShareKind.Platform("com.instagram.android")),
-    ShareOption("Reddit", Icons.Filled.Forum, ShareKind.LinkIntent(ShareIntent.REDDIT)),
-    ShareOption("X", Icons.Filled.Close, ShareKind.LinkIntent(ShareIntent.X)),
-    ShareOption("Facebook", Icons.Filled.People, ShareKind.Platform("com.facebook.katana")),
-    ShareOption("Messages", Icons.Filled.Sms, ShareKind.Messages),
+    ShareOption("Instagram", Icons.Outlined.Camera, ShareKind.Platform("com.instagram.android")),
+    ShareOption("Reddit", Icons.Outlined.Forum, ShareKind.LinkIntent(ShareIntent.REDDIT)),
+    ShareOption("X", Icons.Outlined.Close, ShareKind.LinkIntent(ShareIntent.X)),
+    ShareOption("Facebook", Icons.Outlined.People, ShareKind.Platform("com.facebook.katana")),
+    ShareOption("Messages", Icons.Outlined.Sms, ShareKind.Messages),
 )
 
 /**
@@ -173,14 +177,14 @@ fun ShareSheet(photo: VerifiedPhoto, onDismiss: () -> Unit) {
         val platform = instructionsFor
         if (platform != null) {
             Column(
-                modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(horizontal = DesignTokens.Space.S6).padding(bottom = DesignTokens.Space.S6),
+                verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S4),
             ) {
-                Text("Before you share", style = Theme.font(20, FontWeight.Bold), color = Theme.textPrimary)
+                Text("Before you share.", style = Theme.type.title, color = Theme.foreground)
                 Text(
                     "We've copied the verification link to your clipboard. Paste it into your caption alongside the photo, so anyone who sees it can verify it's real.",
-                    style = Theme.font(14),
-                    color = Theme.textSecondary,
+                    style = Theme.type.body,
+                    color = Theme.mutedForeground,
                 )
                 CtaButton(
                     title = "Continue",
@@ -192,20 +196,20 @@ fun ShareSheet(photo: VerifiedPhoto, onDismiss: () -> Unit) {
             }
         } else {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = DesignTokens.Space.S6).padding(bottom = DesignTokens.Space.S8),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp),
+                verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S6),
             ) {
                 Text(
-                    if (shareError) "Couldn't prepare photo. Please try again." else "Share your human photo",
-                    style = Theme.font(16, FontWeight.SemiBold),
-                    color = Theme.textPrimary,
+                    if (shareError) "Couldn't prepare photo. Please try again." else "Share your human photo.",
+                    style = Theme.type.title,
+                    color = if (shareError) Theme.destructive else Theme.foreground,
                 )
 
                 Box(contentAlignment = Alignment.Center) {
                     Row(
                         modifier = Modifier.alpha(if (isPreparingShare) 0.5f else 1f),
-                        horizontalArrangement = Arrangement.spacedBy(20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(DesignTokens.Space.S4),
                     ) {
                         shareOptions.forEach { option ->
                             Column(
@@ -214,36 +218,43 @@ fun ShareSheet(photo: VerifiedPhoto, onDismiss: () -> Unit) {
                                     begin(option.kind)
                                 },
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S2),
                             ) {
-                                CtaIcon(option.icon, contentDescription = null, diameter = 48.dp, iconSize = 22.dp)
-                                Text(option.label, style = Theme.font(10), color = Theme.textSecondary)
+                                CtaIcon(option.icon, contentDescription = null)
+                                Text(option.label, style = Theme.type.caption, color = Theme.mutedForeground)
                             }
                         }
                     }
                     if (isPreparingShare) Spinner()
                 }
 
-                val copyColor = if (didCopy) Theme.success else Theme.ctaForeground
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Theme.ctaBackground)
+                        .defaultMinSize(minHeight = DesignTokens.Size.ControlHeight)
+                        .clip(CircleShape)
+                        .background(Theme.surface)
                         .clickable(role = Role.Button, onClickLabel = "Copy verification link") {
                             context.copyToClipboard(photo.verificationURL)
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             didCopy = true
                         }
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        .padding(horizontal = DesignTokens.Space.S4),
+                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.Space.S2),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(photo.verificationLink, fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = copyColor)
+                    Text(
+                        if (didCopy) "Link copied." else photo.verificationLink,
+                        style = Theme.type.label,
+                        color = Theme.foreground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
                     Icon(
-                        if (didCopy) Icons.Filled.Check else Icons.Filled.ContentCopy,
+                        if (didCopy) Icons.Outlined.Check else Icons.Outlined.ContentCopy,
                         contentDescription = null,
-                        tint = copyColor,
-                        modifier = Modifier.size(14.dp),
+                        tint = Theme.foreground,
+                        modifier = Modifier.size(DesignTokens.Space.S4),
                     )
                 }
             }

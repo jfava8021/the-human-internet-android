@@ -33,9 +33,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cameraswitch
-import androidx.compose.material.icons.filled.NoPhotography
-import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.outlined.Cameraswitch
+import androidx.compose.material.icons.outlined.NoPhotography
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -67,7 +67,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.thehumaninternet.app.applicationScope
-import com.thehumaninternet.app.designsystem.CTARole
 import com.thehumaninternet.app.designsystem.CtaButton
 import com.thehumaninternet.app.designsystem.CtaIcon
 import com.thehumaninternet.app.designsystem.Theme
@@ -83,6 +82,12 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import com.thehumaninternet.app.designsystem.DesignTokens
+import com.thehumaninternet.app.designsystem.IconSurface
+import com.thehumaninternet.app.designsystem.BrandReveal
+import com.thehumaninternet.app.designsystem.BrandMark
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 
 private enum class CameraAuthorization { NOT_DETERMINED, AUTHORIZED, DENIED }
 
@@ -162,8 +167,12 @@ private fun CameraView(onOpenPhoto: (VerifiedPhoto) -> Unit) {
         if (controller.hasCamera(other)) controller.cameraSelector = other
     }
 
+    val haptic = LocalHapticFeedback.current
+
     fun capture() {
         val userID = appState.user.id ?: return
+        // One of the two moments the design system allows a haptic.
+        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
         // Cosmetic only — nothing waits on it.
         scope.launch {
             shutterFlash.animateTo(1f, tween(50, easing = LinearEasing))
@@ -196,8 +205,8 @@ private fun CameraView(onOpenPhoto: (VerifiedPhoto) -> Unit) {
 
     if (isCameraAvailable == false) {
         Message(
-            icon = Icons.Filled.NoPhotography,
-            title = "No camera available",
+            icon = Icons.Outlined.NoPhotography,
+            title = "No camera available.",
             body = "This device doesn't have a usable camera.",
         )
         return
@@ -213,23 +222,22 @@ private fun CameraView(onOpenPhoto: (VerifiedPhoto) -> Unit) {
             },
             modifier = Modifier.fillMaxSize(),
         )
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = shutterFlash.value }.background(Color.Black))
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = shutterFlash.value }.background(Theme.foreground))
 
         CtaIcon(
-            icon = Icons.Filled.Cameraswitch,
+            icon = Icons.Outlined.Cameraswitch,
             contentDescription = "Flip camera",
-            role = CTARole.TERTIARY,
-            diameter = 44.dp,
+            surface = IconSurface.Media,
             onClick = ::flipCamera,
-            modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(horizontal = 20.dp).padding(top = 12.dp),
+            modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(horizontal = DesignTokens.Space.S6).padding(top = DesignTokens.Space.S3),
         )
 
         Box(
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxSize().padding(horizontal = 32.dp).padding(bottom = 24.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxSize().padding(horizontal = DesignTokens.Space.S8).padding(bottom = DesignTokens.Space.S6),
             contentAlignment = Alignment.BottomCenter,
         ) {
             appState.photos.firstOrNull()?.let { last ->
-                val shape = RoundedCornerShape(10.dp)
+                val shape = RoundedCornerShape(DesignTokens.Radius.Sm)
                 PhotoThumbnail(
                     photo = last,
                     uploadState = appState.uploadState(last.id),
@@ -237,22 +245,22 @@ private fun CameraView(onOpenPhoto: (VerifiedPhoto) -> Unit) {
                     onRetry = { PhotoUploadQueue.retry(last.id, appState) },
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(bottom = 12.dp)
-                        .size(48.dp)
+                        .padding(bottom = DesignTokens.Space.S2)
+                        .size(DesignTokens.Size.IconButton)
                         .clip(shape)
-                        .border(1.dp, Theme.divider, shape)
-                        .clickable { onOpenPhoto(last) },
+                        .clickable(onClickLabel = "Open last photo") { onOpenPhoto(last) },
                 )
             }
-            // The shutter: a tertiary CTA, since it stands alone over the live feed.
+            // The shutter: a white disc ringed in black — the one control
+            // big enough to find without looking.
             Box(
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(DesignTokens.Space.S16)
                     .clip(CircleShape)
-                    .background(Theme.ctaTertiaryBackground)
+                    .background(Theme.background)
                     .clickable(role = Role.Button, onClickLabel = "Take photo", onClick = ::capture)
-                    .padding(4.dp)
-                    .border(4.dp, Theme.ctaTertiaryForeground, CircleShape),
+                    .padding(DesignTokens.Space.S1)
+                    .border(2.dp, Theme.foreground, CircleShape),
             )
         }
     }
@@ -267,8 +275,8 @@ private fun CameraView(onOpenPhoto: (VerifiedPhoto) -> Unit) {
         AlertDialog(
             onDismissRequest = { errorMessage = null },
             confirmButton = { TextButton(onClick = { errorMessage = null }) { Text("OK") } },
-            title = { Text("Couldn't take photo", style = Theme.font(18, FontWeight.SemiBold)) },
-            text = { Text(errorMessage ?: "", style = Theme.font(14)) },
+            title = { Text("Couldn't take photo.", style = Theme.type.title) },
+            text = { Text(errorMessage ?: "", style = Theme.type.body) },
             containerColor = Theme.background,
         )
     }
@@ -278,18 +286,18 @@ private fun CameraView(onOpenPhoto: (VerifiedPhoto) -> Unit) {
 private fun PermissionDeniedView() {
     val context = LocalContext.current
     Column(
-        modifier = Modifier.padding(32.dp),
+        modifier = Modifier.padding(DesignTokens.Space.S8),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S4),
     ) {
         Message(
-            icon = Icons.Filled.PhotoCamera,
-            title = "Camera access is off",
+            icon = Icons.Outlined.PhotoCamera,
+            title = "Camera access is off.",
             body = "Turn on camera access in Settings to take a photo.",
         )
         CtaButton(
             title = "Open Settings",
-            modifier = Modifier.size(width = 160.dp, height = 48.dp),
+            modifier = Modifier,
             onClick = {
                 context.startActivity(
                     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
@@ -301,41 +309,42 @@ private fun PermissionDeniedView() {
 
 @Composable
 private fun Message(icon: ImageVector, title: String, body: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Icon(icon, contentDescription = null, tint = Theme.textSecondary, modifier = Modifier.size(40.dp))
-        Text(title, style = Theme.font(17, FontWeight.SemiBold), color = Theme.textPrimary)
-        Text(body, style = Theme.font(14), color = Theme.textSecondary, textAlign = TextAlign.Center)
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S4)) {
+        Icon(icon, contentDescription = null, tint = Theme.mutedForeground, modifier = Modifier.size(DesignTokens.Space.S12))
+        Text(title, style = Theme.type.title, color = Theme.foreground)
+        Text(body, style = Theme.type.body, color = Theme.mutedForeground, textAlign = TextAlign.Center)
     }
 }
 
 @Composable
 private fun CongratsSheet(onDone: () -> Unit) {
     Column(
-        modifier = Modifier.padding(24.dp),
+        modifier = Modifier.padding(DesignTokens.Space.S6),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S6),
     ) {
-        Text("🎉", fontSize = 44.sp)
+        // The success state is a brand moment: the mark, revealed.
+        BrandReveal { BrandMark(size = DesignTokens.Size.Thumbnail) }
         Text(
             "Congrats on your\nfirst verified photo!",
-            style = Theme.font(22, FontWeight.Bold),
-            color = Theme.textPrimary,
+            style = Theme.type.h2,
+            color = Theme.foreground,
             textAlign = TextAlign.Center,
         )
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S4)) {
             Bullet("Your photos are currently public, which means anyone with the link can see them — including the robots. You can change this to humans only in your profile, so only people signed up to the human internet can verify photo contents.")
             Bullet("All photos are also saved to your device's gallery, so if you ever lose access to your account, you keep your photos.")
         }
-        Spacer(Modifier.size(4.dp))
+        Spacer(Modifier.size(DesignTokens.Space.S1))
         CtaButton(title = "Got it", onClick = onDone)
     }
 }
 
 @Composable
 private fun Bullet(text: String) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("•", style = Theme.font(14), color = Theme.textSecondary)
-        Text(text, style = Theme.font(14), color = Theme.textSecondary)
+    Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.Space.S2)) {
+        Text("•", style = Theme.type.body, color = Theme.mutedForeground)
+        Text(text, style = Theme.type.body, color = Theme.mutedForeground)
     }
 }
 

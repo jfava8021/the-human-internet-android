@@ -7,7 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -107,7 +107,7 @@ fun RemotePhotoImage(
             contentAlignment = Alignment.Center,
         ) {
             if (didFail) {
-                Icon(Icons.Filled.Image, contentDescription = null, tint = Theme.textSecondary)
+                Icon(Icons.Outlined.Image, contentDescription = null, tint = Theme.mutedForeground)
             } else {
                 Spinner()
             }

@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +40,7 @@ import com.thehumaninternet.app.supabase.PhotoRepository
 import com.thehumaninternet.app.uploads.PhotoUploadQueue
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
+import com.thehumaninternet.app.designsystem.DesignTokens
 
 /**
  * One photo, with Share and delete. The brand mark is in the photo's pixels —
@@ -75,32 +76,32 @@ fun PhotoDetailScreen(photo: VerifiedPhoto, onClose: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize().background(Theme.background).statusBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = DesignTokens.Space.S2), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onClose) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Theme.ctaForeground)
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back", tint = Theme.foreground)
             }
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { showDeleteConfirmation = true }, enabled = !isDeleting) {
-                Icon(Icons.Filled.DeleteOutline, contentDescription = "Delete photo", tint = Theme.ctaForeground)
+                Icon(Icons.Outlined.DeleteOutline, contentDescription = "Delete photo", tint = Theme.foreground)
             }
         }
 
         Box(
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 16.dp),
+            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = DesignTokens.Space.S6).padding(top = DesignTokens.Space.S1, bottom = DesignTokens.Space.S4),
             contentAlignment = Alignment.TopCenter,
         ) {
             RemotePhotoImage(
                 photo = photo,
                 fill = false,
                 isProvisional = photo.id in appState.provisionalPhotoIDs,
-                modifier = Modifier.clip(RoundedCornerShape(20.dp)),
+                modifier = Modifier.clip(RoundedCornerShape(DesignTokens.Radius.Lg)),
             )
         }
 
         CtaButton(
             title = "Share",
             onClick = { showShareSheet = true },
-            modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp).fillMaxWidth(),
+            modifier = Modifier.padding(horizontal = DesignTokens.Space.S6).padding(bottom = DesignTokens.Space.S6).fillMaxWidth(),
         )
     }
 
@@ -111,11 +112,11 @@ fun PhotoDetailScreen(photo: VerifiedPhoto, onClose: () -> Unit) {
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Delete this photo?", style = Theme.font(18, FontWeight.SemiBold)) },
+            title = { Text("Delete this photo?", style = Theme.type.title) },
             text = {
                 Text(
                     "This permanently deletes the photo and its verification link. It'll stay in your device's gallery.",
-                    style = Theme.font(14),
+                    style = Theme.type.body,
                 )
             },
             confirmButton = {
@@ -130,8 +131,8 @@ fun PhotoDetailScreen(photo: VerifiedPhoto, onClose: () -> Unit) {
         AlertDialog(
             onDismissRequest = { deleteError = null },
             confirmButton = { TextButton(onClick = { deleteError = null }) { Text("OK") } },
-            title = { Text("Couldn't delete photo", style = Theme.font(18, FontWeight.SemiBold)) },
-            text = { Text(deleteError ?: "", style = Theme.font(14)) },
+            title = { Text("Couldn't delete photo.", style = Theme.type.title) },
+            text = { Text(deleteError ?: "", style = Theme.type.body) },
             containerColor = Theme.background,
         )
     }

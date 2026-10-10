@@ -20,11 +20,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -55,6 +55,14 @@ import com.thehumaninternet.app.uploads.PhotoUploadQueue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
+import com.thehumaninternet.app.designsystem.DesignTokens
+import com.thehumaninternet.app.designsystem.VerifiedBadge
+import com.thehumaninternet.app.designsystem.LabelValue
+import com.thehumaninternet.app.designsystem.HumanCard
+import androidx.compose.ui.res.painterResource
+import com.thehumaninternet.app.R
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.PaddingValues
 
 /**
  * The grid of the user's photos. Tap a tile for the detail view; long-press to
@@ -102,38 +110,39 @@ fun ProfileScreen(onOpenPhoto: (VerifiedPhoto) -> Unit) {
     BackHandler(enabled = isSelecting) { selectedPhotoIDs = emptySet() }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(Theme.background).statusBarsPadding().padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxSize().background(Theme.background).statusBarsPadding().padding(DesignTokens.Space.S6),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S4),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (isSelecting) {
                 val count = selectedPhotoIDs.size
                 Text(
                     "$count photo${if (count == 1) "" else "s"} selected",
-                    style = Theme.font(20, FontWeight.Bold),
-                    color = Theme.textPrimary,
+                    style = Theme.type.title,
+                    color = Theme.foreground,
                     modifier = Modifier.weight(1f),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    CtaIcon(Icons.Filled.Close, "Cancel selection", enabled = !isDeleting, onClick = { selectedPhotoIDs = emptySet() })
-                    CtaIcon(Icons.Filled.DeleteOutline, "Delete selected", enabled = !isDeleting, onClick = { showDeleteConfirmation = true })
+                Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.Space.S3)) {
+                    CtaIcon(Icons.Outlined.Close, "Cancel selection", enabled = !isDeleting, onClick = { selectedPhotoIDs = emptySet() })
+                    CtaIcon(Icons.Outlined.DeleteOutline, "Delete selected", enabled = !isDeleting, onClick = { showDeleteConfirmation = true })
                 }
             } else {
                 Row(
                     modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.Space.S2),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         appState.user.username.ifEmpty { "You" },
-                        style = Theme.font(20, FontWeight.Bold),
-                        color = Theme.textPrimary,
+                        style = Theme.type.h3,
+                        color = Theme.foreground,
                     )
+                    // "Verified" is always the spiral, never a check or seal.
                     if (appState.user.verificationStatus == VerificationStatus.VERIFIED) {
-                        Icon(Icons.Filled.Verified, contentDescription = "Verified", tint = Theme.success, modifier = Modifier.size(20.dp))
+                        VerifiedBadge(painterResource(R.drawable.ic_brand_mark))
                     }
                 }
-                CtaIcon(Icons.Filled.Settings, "Settings", onClick = { showSettings = true })
+                CtaIcon(Icons.Outlined.Settings, "Settings", onClick = { showSettings = true })
             }
         }
 
@@ -141,22 +150,27 @@ fun ProfileScreen(onOpenPhoto: (VerifiedPhoto) -> Unit) {
             PendingPhotosBanner()
         }
 
-        Text("Privacy: ${appState.user.privacy.rawValue}", style = Theme.font(13), color = Theme.textSecondary)
+        Text("Privacy: ${appState.user.privacy.rawValue}", style = Theme.type.label, color = Theme.mutedForeground)
 
         if (appState.photos.isEmpty()) {
             Column(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+                verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S4, Alignment.CenterVertically),
             ) {
-                Icon(Icons.Filled.PhotoLibrary, contentDescription = null, tint = Theme.textSecondary, modifier = Modifier.size(32.dp))
-                Text("No photos yet. Take your first one!", style = Theme.font(14), color = Theme.textSecondary)
+                // Empty state: one doodle, two beats.
+                Image(
+                    painter = painterResource(R.drawable.doodle_hand),
+                    contentDescription = null,
+                    modifier = Modifier.size(DesignTokens.Size.Thumbnail),
+                )
+                LabelValue("No photos yet.", "Take your first one.")
             }
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.Space.S1),
+                verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S1),
             ) {
                 items(appState.photos, key = { it.id }) { photo ->
                     PhotoThumbnail(
@@ -195,13 +209,13 @@ fun ProfileScreen(onOpenPhoto: (VerifiedPhoto) -> Unit) {
             title = {
                 Text(
                     "Are you sure you would like to delete $count photo${if (count == 1) "" else "s"}?",
-                    style = Theme.font(18, FontWeight.SemiBold),
+                    style = Theme.type.title,
                 )
             },
             text = {
                 Text(
                     "This permanently deletes them and their verification links. They'll stay in your device's gallery.",
-                    style = Theme.font(14),
+                    style = Theme.type.body,
                 )
             },
             confirmButton = {
@@ -216,8 +230,8 @@ fun ProfileScreen(onOpenPhoto: (VerifiedPhoto) -> Unit) {
         AlertDialog(
             onDismissRequest = { deleteError = null },
             confirmButton = { TextButton(onClick = { deleteError = null }) { Text("OK") } },
-            title = { Text("Couldn't delete photos", style = Theme.font(18, FontWeight.SemiBold)) },
-            text = { Text(deleteError ?: "", style = Theme.font(14)) },
+            title = { Text("Couldn't delete photos.", style = Theme.type.title) },
+            text = { Text(deleteError ?: "", style = Theme.type.body) },
             containerColor = Theme.background,
         )
     }
@@ -230,8 +244,6 @@ fun ProfileScreen(onOpenPhoto: (VerifiedPhoto) -> Unit) {
 @Composable
 private fun PendingPhotosBanner() {
     val appState = LocalAppState.current
-    val shape = RoundedCornerShape(Theme.cornerRadius)
-
     // Belt and braces: re-kick the queue while there's anything pending.
     // Cheap to call this often — a photo that has been failing is only
     // actually retried once its backoff has elapsed.
@@ -244,30 +256,22 @@ private fun PendingPhotosBanner() {
 
     fun countText(count: Int) = "$count photo${if (count == 1) "" else "s"}"
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S2)) {
         if (appState.processingPhotoIDs.isNotEmpty()) {
-            Box(Modifier.fillMaxWidth().clip(shape).background(Theme.surface).padding(horizontal = 12.dp, vertical = 10.dp)) {
-                Text(
-                    "${countText(appState.processingPhotoIDs.size)} still being verified",
-                    style = Theme.font(13, FontWeight.Medium),
-                    color = Theme.textPrimary,
-                )
+            HumanCard(Modifier.fillMaxWidth(), radius = DesignTokens.Radius.Md, padding = PaddingValues(DesignTokens.Space.S3)) {
+                LabelValue("Verifying", "${countText(appState.processingPhotoIDs.size)} still being verified.")
             }
         }
         if (appState.failedPhotoIDs.isNotEmpty()) {
-            Box(
+            HumanCard(
                 Modifier
                     .fillMaxWidth()
-                    .clip(shape)
-                    .background(Theme.ctaBackground)
-                    .clickable { appState.failedPhotoIDs.forEach { PhotoUploadQueue.retry(it, appState) } }
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .clip(RoundedCornerShape(DesignTokens.Radius.Md))
+                    .clickable(onClickLabel = "Retry") { appState.failedPhotoIDs.forEach { PhotoUploadQueue.retry(it, appState) } },
+                radius = DesignTokens.Radius.Md,
+                padding = PaddingValues(DesignTokens.Space.S3),
             ) {
-                Text(
-                    "${countText(appState.failedPhotoIDs.size)} failed to verify or save. Tap this message to try again.",
-                    style = Theme.font(13, FontWeight.Medium),
-                    color = Theme.ctaForeground,
-                )
+                LabelValue("Not saved yet", "${countText(appState.failedPhotoIDs.size)} failed to verify or save. Tap to try again.")
             }
         }
     }

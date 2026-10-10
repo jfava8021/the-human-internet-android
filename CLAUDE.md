@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # The Human Internet — Android App
 
 Native Kotlin + Jetpack Compose app for "the human internet" — photo verification proving a photo was captured live by a real human. It is a port of the iOS app and **a second front end over the same backend**: nothing server-side lives here, and nothing server-side was changed to make it work.
@@ -36,6 +38,10 @@ Until Stripe Identity is ported, onboarding's verify step is passed through exac
 - **Ids are lowercase UUID strings**, not a UUID type — that's how supabase-kt and Postgres both render them.
 - **The provisional watermark is drawn into the decoded bitmap**, not overlaid as a separate view. Same artwork, same `markRect`.
 
+## Design system
+
+The look is the shared design system, not anything local to this repo: **`DESIGN.md`** (intent, generated into this repo) and **`AGENTS.md`** (the hard rules and the hardcoded-value check). Values come from `design-system/tokens.json` in the **website repo**; `node design-system/build.mjs` there regenerates `designsystem/DesignTokens.kt` here — never edit that file. `HumanTheme` maps every Material 3 role, type slot and shape to the brand; `HumanInternetTheme` wraps it with Inter Display. Screens read `Theme.foreground` / `.mutedForeground` / `.surface` / `.border` / `.destructive` and `Theme.type.<display|h1|h2|h3|title|body|label|caption>` — plain values, usable outside a composable — plus `DesignTokens.Space / Radius / Size`. Buttons are pills (`CtaButton` / `HumanButton` with `CtaRole.Primary` black, `Secondary` grey, `Tertiary` text only); icon-only buttons are 48dp circles (`CtaIcon`, `IconSurface.Media` over a photo or the camera feed); cards are flat; motion is opacity only; icons are Material *Outlined*; **"verified" is always the spiral** (`BrandMark`, `VerifiedBadge` with `R.drawable.ic_brand_mark`), never a check or seal — the watermark PNG (`brand_mark_watermark`) is separate and unchanged. Haptics only on capture and "Photo verified". `StyleguideScreen` (`@Preview`) shows every token and component.
+
 ## Setup needed before sign-in works (Supabase and Google dashboards)
 
 None of this can be done from the repo:
@@ -53,7 +59,8 @@ app/src/main/java/com/thehumaninternet/app/
   models/               <- Models.kt (rows + enums), AppState.kt
   supabase/             <- client + UserProfile/Photo/FeatureFlag repositories
   auth/  uploads/  verification/
-  designsystem/         <- Theme, Components, PhotoWatermarker, RemotePhotoImage
+  designsystem/         <- DesignTokens (generated), HumanTheme, Theme, Components,
+                           BrandComponents, StyleguideScreen, PhotoWatermarker, RemotePhotoImage
   root/  onboarding/  camera/  profile/  settings/  sharing/  logging/
 app/src/test/           <- JVM unit tests pinning the shared contracts
 licenses/               <- third-party licence texts (Inter Display OFL)
