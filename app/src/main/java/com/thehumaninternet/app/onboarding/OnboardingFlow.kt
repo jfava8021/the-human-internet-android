@@ -129,8 +129,8 @@ fun OnboardingFlow() {
         AlertDialog(
             onDismissRequest = dismiss,
             confirmButton = { TextButton(onClick = dismiss) { Text("OK") } },
-            title = { Text("Something went wrong", style = Theme.font(18, FontWeight.SemiBold)) },
-            text = { Text(message, style = Theme.font(14)) },
+            title = { Text("Something went wrong.", style = Theme.type.title) },
+            text = { Text(message, style = Theme.type.body) },
             containerColor = Theme.background,
         )
     }

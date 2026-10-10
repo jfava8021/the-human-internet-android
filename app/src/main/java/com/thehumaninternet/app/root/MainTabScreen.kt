@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBox
-import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.outlined.AccountBox
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -51,24 +51,24 @@ fun MainTabScreen() {
         bottomBar = {
             NavigationBar(containerColor = Theme.background) {
                 val colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Theme.selection,
-                    selectedTextColor = Theme.selection,
-                    unselectedIconColor = Theme.ctaForeground,
-                    unselectedTextColor = Theme.ctaForeground,
+                    selectedIconColor = Theme.foreground,
+                    selectedTextColor = Theme.foreground,
+                    unselectedIconColor = Theme.mutedForeground,
+                    unselectedTextColor = Theme.mutedForeground,
                     indicatorColor = Color.Transparent,
                 )
                 NavigationBarItem(
                     selected = tab == Tab.CAMERA,
                     onClick = { tab = Tab.CAMERA },
-                    icon = { Icon(Icons.Filled.PhotoCamera, contentDescription = null) },
-                    label = { Text("Camera", style = Theme.font(11)) },
+                    icon = { Icon(Icons.Outlined.PhotoCamera, contentDescription = null) },
+                    label = { Text("Camera", style = Theme.type.caption) },
                     colors = colors,
                 )
                 NavigationBarItem(
                     selected = tab == Tab.PROFILE,
                     onClick = { tab = Tab.PROFILE },
-                    icon = { Icon(Icons.Filled.AccountBox, contentDescription = null) },
-                    label = { Text("Profile", style = Theme.font(11)) },
+                    icon = { Icon(Icons.Outlined.AccountBox, contentDescription = null) },
+                    label = { Text("Profile", style = Theme.type.caption) },
                     colors = colors,
                 )
             }

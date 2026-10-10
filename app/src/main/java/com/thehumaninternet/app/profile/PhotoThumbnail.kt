@@ -7,21 +7,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.thehumaninternet.app.designsystem.CTARole
 import com.thehumaninternet.app.designsystem.CtaIcon
 import com.thehumaninternet.app.designsystem.RemotePhotoImage
 import com.thehumaninternet.app.designsystem.Spinner
 import com.thehumaninternet.app.models.PhotoUploadState
 import com.thehumaninternet.app.models.VerifiedPhoto
+import com.thehumaninternet.app.designsystem.DesignTokens
+import com.thehumaninternet.app.designsystem.IconSurface
+import com.thehumaninternet.app.designsystem.Theme
 
 enum class SelectionState { INACTIVE, UNSELECTED, SELECTED }
 
@@ -43,30 +45,30 @@ fun PhotoThumbnail(
         RemotePhotoImage(photo, Modifier.fillMaxSize(), isThumbnail = true, isProvisional = isProvisional)
 
         if (selectionState == SelectionState.SELECTED) {
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.25f)))
+            Box(Modifier.fillMaxSize().background(Theme.foreground.copy(alpha = 0.25f)))
         }
 
         when (selectionState) {
             SelectionState.INACTIVE -> Unit
             SelectionState.UNSELECTED -> Icon(
-                Icons.Filled.RadioButtonUnchecked,
+                Icons.Outlined.RadioButtonUnchecked,
                 contentDescription = "Not selected",
-                tint = Color.White,
+                tint = Theme.background,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .size(22.dp)
-                    .background(Color.Black.copy(alpha = 0.35f), CircleShape),
+                    .padding(DesignTokens.Space.S2)
+                    .size(DesignTokens.Size.Icon)
+                    .background(Theme.foreground.copy(alpha = 0.35f), CircleShape),
             )
             SelectionState.SELECTED -> Icon(
-                Icons.Filled.CheckCircle,
+                Icons.Outlined.CheckCircle,
                 contentDescription = "Selected",
-                tint = Color.White,
+                tint = Theme.background,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .size(22.dp)
-                    .background(Color.Black, CircleShape),
+                    .padding(DesignTokens.Space.S2)
+                    .size(DesignTokens.Size.Icon)
+                    .background(Theme.foreground, CircleShape),
             )
         }
 
@@ -75,20 +77,19 @@ fun PhotoThumbnail(
             PhotoUploadState.PROCESSING -> Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(6.dp)
-                    .size(26.dp)
-                    .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+                    .padding(DesignTokens.Space.S2)
+                    .size(DesignTokens.Space.S8)
+                    .background(Theme.background, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Spinner(color = Color.White, diameter = 14.dp)
+                Spinner(diameter = DesignTokens.Space.S4)
             }
             PhotoUploadState.FAILED -> CtaIcon(
-                icon = Icons.Filled.Refresh,
+                icon = Icons.Outlined.Refresh,
                 contentDescription = "Retry upload",
-                role = CTARole.TERTIARY,
-                diameter = 24.dp,
+                surface = IconSurface.Media,
                 onClick = onRetry,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(DesignTokens.Space.S1),
             )
         }
     }

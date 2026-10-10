@@ -16,12 +16,12 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Eco
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Eco
+import androidx.compose.material.icons.outlined.LocalFireDepartment
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Pets
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,6 +45,15 @@ import com.thehumaninternet.app.designsystem.CtaIcon
 import com.thehumaninternet.app.designsystem.FieldLabel
 import com.thehumaninternet.app.designsystem.HITextField
 import com.thehumaninternet.app.designsystem.Theme
+import com.thehumaninternet.app.designsystem.DesignTokens
+import com.thehumaninternet.app.designsystem.Wordmark
+import com.thehumaninternet.app.designsystem.BrandReveal
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.thehumaninternet.app.R
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
 @Composable
 fun WelcomeScreen(isBusy: Boolean, onSignIn: () -> Unit) {
@@ -53,43 +62,46 @@ fun WelcomeScreen(isBusy: Boolean, onSignIn: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.weight(1f))
-        BrandMark(width = 56.dp, modifier = Modifier.padding(bottom = 24.dp))
-        Text(
-            "Welcome to\nthe human internet",
-            style = Theme.font(28, FontWeight.Bold),
-            color = Theme.textPrimary,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.weight(1f))
-        // The one button that isn't a CTA role: the sign-in provider's own
-        // button, black so it shows on white — as Sign in with Apple is on iOS.
-        Box(
-            modifier = Modifier
-                .padding(horizontal = 32.dp)
-                .padding(bottom = 48.dp)
-                .fillMaxWidth()
-                .height(50.dp)
-                .alpha(if (isBusy) 0.5f else 1f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.Black)
-                .clickable(enabled = !isBusy, role = Role.Button, onClick = onSignIn),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("Sign in with Google", style = Theme.font(17, FontWeight.Medium), color = Color.White)
+        // A brand moment: the mark, then the words, faded in by opacity
+        // only (`BrandReveal`).
+        BrandReveal(0) {
+            BrandMark(size = DesignTokens.Size.Thumbnail, modifier = Modifier.padding(bottom = DesignTokens.Space.S6))
         }
+        BrandReveal(1) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S3),
+            ) {
+                Text("Welcome to", style = Theme.type.h2, color = Theme.foreground, textAlign = TextAlign.Center)
+                Wordmark(height = DesignTokens.Space.S6)
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        // The screen's one primary CTA: a black pill.
+        CtaButton(
+            title = "Sign in with Google",
+            enabled = !isBusy,
+            onClick = onSignIn,
+            modifier = Modifier
+                .padding(horizontal = DesignTokens.Space.S8)
+                .padding(bottom = DesignTokens.Space.S12)
+                .fillMaxWidth(),
+        )
     }
 }
 
 /** Index into this list is what `users.profile_icon_index` stores; the order matches iOS. */
 private val profileIcons = listOf(
-    Icons.Filled.Person,
-    Icons.Filled.Pets,
-    Icons.Filled.Star,
-    Icons.Filled.LocalFireDepartment,
-    Icons.Filled.Eco,
-    Icons.Filled.DarkMode,
+    Icons.Outlined.Person,
+    Icons.Outlined.Pets,
+    Icons.Outlined.Star,
+    Icons.Outlined.LocalFireDepartment,
+    Icons.Outlined.Eco,
+    Icons.Outlined.DarkMode,
 )
 
+// FlowRow is stable in current Compose; the opt-in is harmless where it isn't needed.
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProfileSetupScreen(
     initialUsername: String,
@@ -106,36 +118,39 @@ fun ProfileSetupScreen(
             .fillMaxSize()
             .background(Theme.background)
             .systemBarsPadding()
-            .padding(24.dp)
-            .padding(top = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(28.dp),
+            .padding(DesignTokens.Space.S6)
+            .padding(top = DesignTokens.Space.S6),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S8),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Set up profile", style = Theme.font(24, FontWeight.Bold), color = Theme.textPrimary)
+        Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S2)) {
+            Text("Set up profile", style = Theme.type.h2, color = Theme.foreground)
             Text(
                 "The information below may be visible to the public. It can be changed later.",
-                style = Theme.font(14),
-                color = Theme.textSecondary,
+                style = Theme.type.body,
+                color = Theme.mutedForeground,
             )
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S2)) {
             FieldLabel("Username")
-            HITextField(placeholder = "Your Username", text = username, onTextChange = { username = it })
+            HITextField(placeholder = "Your username", text = username, onTextChange = { username = it })
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            FieldLabel("Profile Icon")
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S3)) {
+            FieldLabel("Profile icon")
+            // Six 48dp circles don't fit a narrow phone in one row.
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.Space.S2),
+                verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S2),
+            ) {
                 profileIcons.forEachIndexed { index, icon ->
                     CtaIcon(
                         icon = icon,
-                        contentDescription = null,
-                        diameter = 44.dp,
+                        contentDescription = "Profile icon ${index + 1}",
                         onClick = { selectedIcon = index },
                         modifier = Modifier.border(
                             2.dp,
-                            if (selectedIcon == index) Theme.selection else Color.Transparent,
+                            if (selectedIcon == index) Theme.foreground else Color.Transparent,
                             CircleShape,
                         ),
                     )
@@ -158,23 +173,27 @@ fun WelcomeHumanScreen(onTakePhoto: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().background(Theme.background).systemBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.Space.S6),
     ) {
         Spacer(Modifier.weight(1f))
-        Text("👋", fontSize = 64.sp)
-        Text("Welcome human.", style = Theme.font(26, FontWeight.Bold), color = Theme.textPrimary)
+        Image(
+            painter = painterResource(R.drawable.doodle_hand),
+            contentDescription = null,
+            modifier = Modifier.size(DesignTokens.Space.S24),
+        )
+        Text("Welcome human.", style = Theme.type.h2, color = Theme.foreground)
         Text(
             "You're verified. From here on, every photo you take can carry proof that a real person took it — not a bot, not a model. Let's take your first one.",
-            style = Theme.font(15),
-            color = Theme.textSecondary,
+            style = Theme.type.body,
+            color = Theme.mutedForeground,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 32.dp),
+            modifier = Modifier.padding(horizontal = DesignTokens.Space.S8),
         )
         Spacer(Modifier.weight(1f))
         CtaButton(
             title = "Take your first photo",
             onClick = onTakePhoto,
-            modifier = Modifier.padding(horizontal = 32.dp).padding(bottom = 28.dp).fillMaxWidth(),
+            modifier = Modifier.padding(horizontal = DesignTokens.Space.S8).padding(bottom = DesignTokens.Space.S8).fillMaxWidth(),
         )
     }
 }
