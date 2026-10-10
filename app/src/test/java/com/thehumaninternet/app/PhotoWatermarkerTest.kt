@@ -32,6 +32,30 @@ class PhotoWatermarkerTest {
         // Byte-identical to the iOS image set and the Lambda's assets/brand-mark.png.
         val mark = ImageIO.read(File("src/main/res/drawable-nodpi/brand_mark_watermark.png"))
         assertEquals(1024, mark.width)
-        assertEquals(860, mark.height)
+        assertEquals(1082, mark.height)
+    }
+
+    /** Mirrors the Lambda's `mark_color`: grid size, threshold, and luma (not a plain average). */
+    @Test
+    fun theMarkIsBlackOnLightAndWhiteOnDark() {
+        assertEquals(32, PhotoWatermarker.COLOR_SAMPLE_GRID)
+        assertEquals(0.5f, PhotoWatermarker.LIGHT_BACKGROUND_LUMA, 0f)
+        val rect = PhotoWatermarker.MarkRect(0f, 0f, 64f, 64f)
+        fun solid(argb: Int) = PhotoWatermarker.markColor(rect, 64, 64) { _, _ -> argb }
+        assertEquals(PhotoWatermarker.MarkColor.WHITE, solid(0xFF7F7F7F.toInt()))   // just under 0.5
+        assertEquals(PhotoWatermarker.MarkColor.BLACK, solid(0xFF808080.toInt()))   // just over
+        assertEquals(PhotoWatermarker.MarkColor.BLACK, solid(0xFF00FF00.toInt()))   // green reads light
+        assertEquals(PhotoWatermarker.MarkColor.WHITE, solid(0xFF0000FF.toInt()))   // blue reads dark
+    }
+
+    /** Only the box under the mark decides: a light patch there on a dark photo gets a black mark. */
+    @Test
+    fun theColourComesFromTheAreaUnderTheMark() {
+        val rect = PhotoWatermarker.markRect(1000f, 800f, markAspectRatio = 1082f / 1024f)
+        val color = PhotoWatermarker.markColor(rect, 1000, 800) { x, y ->
+            val inside = x >= rect.left && x < rect.left + rect.width && y >= rect.top && y < rect.top + rect.height
+            if (inside) 0xFFF0F0F0.toInt() else 0xFF141414.toInt()
+        }
+        assertEquals(PhotoWatermarker.MarkColor.BLACK, color)
     }
 }
