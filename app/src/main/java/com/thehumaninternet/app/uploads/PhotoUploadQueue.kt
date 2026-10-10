@@ -63,8 +63,15 @@ object PhotoUploadQueue {
          * records `original_storage_path` on the row.
          */
         val hasOriginal: Boolean,
+        /** How many attempts have failed so far, and when the last one did — see [retryDelay]. */
+        val failedAttempts: Int = 0,
+        val lastFailureMillis: Long = 0,
     ) {
         val capturedAt: Instant get() = Instant.ofEpochMilli(capturedAtMillis)
+
+        /** Whether an automatic attempt is allowed yet. A manual retry ignores this. */
+        fun isDueForRetry(now: Instant): Boolean =
+            failedAttempts == 0 || !now.isBefore(Instant.ofEpochMilli(lastFailureMillis).plus(retryDelay(failedAttempts)))
     }
 
     /**
@@ -73,6 +80,30 @@ object PhotoUploadQueue {
      * [pruneOnSignOut] ran, and gets swept.
      */
     private val staleForeignEntryMaxAge = Duration.ofDays(7)
+
+    /**
+     * How long automatic retries wait after each consecutive failure; the
+     * last entry repeats until the photo uploads or expires.
+     *
+     * Every attempt re-sends the whole photo and spends a Play Integrity
+     * token, a signing Lambda run and a KMS signature — and Play Integrity
+     * has a daily quota shared by every user. Retrying a photo the server
+     * keeps refusing every ten seconds, which is what this did at first,
+     * could exhaust that quota from a handful of stuck phones. Backing off
+     * keeps quick recovery from a blip while capping a stuck photo at a few
+     * attempts a day.
+     */
+    private val retryDelays = listOf(
+        Duration.ofSeconds(10),
+        Duration.ofMinutes(1),
+        Duration.ofMinutes(5),
+        Duration.ofMinutes(30),
+        Duration.ofHours(6),
+    )
+
+    /** The wait before the next automatic attempt, after `failedAttempts` failures in a row. */
+    fun retryDelay(failedAttempts: Int): Duration =
+        if (failedAttempts <= 0) Duration.ZERO else retryDelays[minOf(failedAttempts, retryDelays.size) - 1]
 
     /** Even a user's own permanently-failing upload must not sit on disk forever. */
     private val maxPendingAge = Duration.ofDays(30)
@@ -129,10 +160,16 @@ object PhotoUploadQueue {
      * photos are seeded into `appState.photos` here too, since
      * `PhotoRepository.fetchAll` only returns rows that already made it to the
      * database.
+     *
+     * This is the *automatic* path — launch, sign-in, and the pending
+     * banner's periodic re-kick — so a photo that has been failing waits out
+     * its [retryDelay] and shows as failed in the meantime. [retry] is the
+     * manual path and attempts at once.
      */
     @MainThread
     fun resumePendingUploads(userID: String, appState: AppState) {
         sweep(currentUserID = userID)
+        val now = Instant.now()
         for (item in loadManifest().filter { it.userID == userID }) {
             if (appState.photos.none { it.id == item.id }) {
                 appState.photos += VerifiedPhoto.create(item.id, item.userID, item.capturedAt, item.shortCode)
@@ -140,12 +177,21 @@ object PhotoUploadQueue {
             if (!item.isSigned && appState.isWatermarkEnabled) {
                 appState.provisionalPhotoIDs += item.id
             }
-            drive(item.id, item.userID, item.capturedAt, item.shortCode, appState)
+            if (item.isDueForRetry(now)) {
+                drive(item.id, item.userID, item.capturedAt, item.shortCode, appState)
+            } else if (item.id !in appState.processingPhotoIDs) {
+                appState.failedPhotoIDs += item.id
+            }
         }
         appState.photos = appState.photos.sortedByDescending { it.capturedAt }
     }
 
-    /** Manually re-attempts a specific upload that previously failed. */
+    /**
+     * Manually re-attempts a specific upload that previously failed — the
+     * user tapped retry, so it runs now whatever the backoff says. A failure
+     * still counts toward the backoff, so tapping doesn't re-arm rapid
+     * automatic retries.
+     */
     @MainThread
     fun retry(photoID: String, appState: AppState) {
         val item = loadManifest().firstOrNull { it.id == photoID } ?: return
@@ -263,6 +309,7 @@ object PhotoUploadQueue {
             } catch (error: Exception) {
                 appState.processingPhotoIDs -= photoID
                 appState.failedPhotoIDs += photoID
+                recordFailure(photoID)
                 Log.uploads.error("Upload failed for $photoID", error)
             }
         }
@@ -271,6 +318,15 @@ object PhotoUploadQueue {
     private fun markSigned(photoID: String, hasOriginal: Boolean) {
         saveManifest(
             loadManifest().map { if (it.id == photoID) it.copy(isSigned = true, hasOriginal = hasOriginal) else it }
+        )
+    }
+
+    private fun recordFailure(photoID: String) {
+        val now = System.currentTimeMillis()
+        saveManifest(
+            loadManifest().map {
+                if (it.id == photoID) it.copy(failedAttempts = it.failedAttempts + 1, lastFailureMillis = now) else it
+            }
         )
     }
 

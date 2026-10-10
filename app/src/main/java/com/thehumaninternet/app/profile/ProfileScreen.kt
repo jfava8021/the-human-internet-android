@@ -233,6 +233,8 @@ private fun PendingPhotosBanner() {
     val shape = RoundedCornerShape(Theme.cornerRadius)
 
     // Belt and braces: re-kick the queue while there's anything pending.
+    // Cheap to call this often — a photo that has been failing is only
+    // actually retried once its backoff has elapsed.
     LaunchedEffect(Unit) {
         while (true) {
             delay(10_000)

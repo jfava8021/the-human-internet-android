@@ -12,7 +12,7 @@ Native Kotlin + Jetpack Compose app for "the human internet" — photo verificat
 
 - **Sign-in** → **profile setup** → (identity verification passed through, see below) → **welcome** → main app. Progress persists to `users.onboarding_step` after every step.
 - **Camera tab**: CameraX capture, front/back flip, shutter flash, tap-through thumbnail of the last photo. No gallery import, by design — it would defeat the "taken live" guarantee.
-- **Upload pipeline** (`uploads/PhotoUploadQueue.kt`): optimistic and durable, a faithful port of the iOS queue — on-disk manifest as the source of truth, both watermark paths, 2-at-a-time processing, resume on launch, prune on sign-out, the same expiry limits.
+- **Upload pipeline** (`uploads/PhotoUploadQueue.kt`): optimistic and durable, a faithful port of the iOS queue — on-disk manifest as the source of truth, both watermark paths, 2-at-a-time processing, resume on launch, prune on sign-out, the same expiry limits. One deliberate difference: **automatic retries back off** (10s, 1 min, 5 min, 30 min, then every 6 h; `retryDelay`), because each attempt spends a Play Integrity token against a daily quota shared by all users, and the iOS-style retry every 10 seconds could exhaust it from a few stuck phones. A manual retry always runs at once.
 - **Profile tab**: photo grid, long-press multi-select and batch delete, the pending/failed banner.
 - **Photo detail**: the photo, Share, delete.
 - **Sharing**: Reddit and X link intents, Messages with the link pre-filled, Instagram/Facebook via clipboard + image share, and the copyable verification link.
