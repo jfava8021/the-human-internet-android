@@ -31,6 +31,8 @@ platform :android do
                    "Roll it out by hand: Play Console > Testing > Internal testing > Start rollout.")
       upload_to_internal_testing(release_status: "draft")
     end
+
+    upload_store_listing_images
   end
 
   private_lane :upload_to_internal_testing do |options|
@@ -39,17 +41,42 @@ platform :android do
       aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
       json_key_data: ENV.fetch("PLAY_SERVICE_ACCOUNT_JSON"),
       release_status: options[:release_status],
-      # This lane ships a binary, plus the store-listing images in
-      # fastlane/metadata/android/<language>/images/ — today just icon.png,
-      # the 512×512 Play Store icon, so it can't drift from the launcher
-      # icon. Text and screenshots are still edited in Play Console. The
-      # folder's language (en-US) must be one the listing has,
-      # and the service account needs permission to edit the store listing.
-      metadata_path: "fastlane/metadata/android",
+      # The binary only. Google applies everything in one upload as a single
+      # all-or-nothing change, so the store-listing images go up separately
+      # (below) where a problem with them can't stop a build reaching testers.
       skip_upload_metadata: true,
       skip_upload_changelogs: true,
-      skip_upload_images: false,
+      skip_upload_images: true,
       skip_upload_screenshots: true
     )
+  end
+
+  # The store-listing images in fastlane/metadata/android/<language>/images/
+  # — today just icon.png, the 512×512 Play Store icon, kept here so it can't
+  # drift from the launcher icon. Text and screenshots are still edited in
+  # Play Console. The folder's language (en-US) must be one the listing has,
+  # and the service account needs the "Manage store presence" permission.
+  #
+  # Never fails the lane: the build has already shipped by the time this
+  # runs, and a listing icon is not worth a red pipeline. It did exactly that
+  # on 2026-10-10, when the service account lacked the permission and every
+  # push stopped reaching testers.
+  private_lane :upload_store_listing_images do
+    begin
+      upload_to_play_store(
+        track: "internal",
+        json_key_data: ENV.fetch("PLAY_SERVICE_ACCOUNT_JSON"),
+        metadata_path: "fastlane/metadata/android",
+        skip_upload_aab: true,
+        skip_upload_apk: true,
+        skip_upload_metadata: true,
+        skip_upload_changelogs: true,
+        skip_upload_images: false,
+        skip_upload_screenshots: true
+      )
+    rescue => error
+      UI.important("The build was uploaded, but the store-listing images were not: #{error.message}")
+      UI.important("Check that the CI service account has \"Manage store presence\" for this app in Play Console.")
+    end
   end
 end
