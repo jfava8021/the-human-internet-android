@@ -3,13 +3,14 @@ package com.thehumaninternet.app.profile
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import com.thehumaninternet.app.designsystem.Theme
 import com.thehumaninternet.app.uploads.PhotoLibrarySaver
@@ -18,11 +19,12 @@ import com.thehumaninternet.app.uploads.PhotoLibrarySaver
  * Confirms deleting one or more photos, and — when this device holds a
  * gallery copy of any of them — offers to remove those copies too.
  *
- * Keeping the gallery copy is the default and the first choice: the copy is
- * the user's own backup, and taking it away is the less expected outcome.
+ * Plain "Delete" keeps the gallery copy, as it always has: the copy is the
+ * user's own backup, and taking it away is the less expected outcome.
  * `onDelete` is told which the user picked; the deletion itself is the
  * caller's, which then calls [removeGalleryCopies] if asked.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DeletePhotosDialog(
     photoIDs: Collection<String>,
@@ -49,21 +51,21 @@ fun DeletePhotosDialog(
             val onDevice = when {
                 copies == 0 && single -> "It'll stay in your device's gallery."
                 copies == 0 -> "They'll stay in your device's gallery."
-                single -> "A copy is also saved in this device's gallery."
-                copies == count -> "Copies are also saved in this device's gallery."
-                else -> "$copies of them also have a copy saved in this device's gallery."
+                single -> "Delete keeps the copy in your device's gallery."
+                copies == count -> "Delete keeps the copies in your device's gallery."
+                else -> "$copies of them have a copy in your device's gallery, which Delete keeps."
             }
             Text("$whatGoes $onDevice", style = Theme.type.body)
         },
         confirmButton = {
-            Column(horizontalAlignment = Alignment.End) {
-                if (copies == 0) {
-                    TextButton(onClick = { onDelete(false) }) { Text("Delete") }
-                } else {
-                    TextButton(onClick = { onDelete(false) }) { Text("Delete, keep on this device") }
-                    TextButton(onClick = { onDelete(true) }) { Text("Delete from this device too") }
-                }
+            // Side by side, wrapping only when they don't fit: on a phone the
+            // third, longer button drops to a row of its own.
+            FlowRow(horizontalArrangement = Arrangement.End) {
                 TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = { onDelete(false) }) { Text("Delete") }
+                if (copies > 0) {
+                    TextButton(onClick = { onDelete(true) }) { Text("Delete from app and device") }
+                }
             }
         },
         containerColor = Theme.background,
