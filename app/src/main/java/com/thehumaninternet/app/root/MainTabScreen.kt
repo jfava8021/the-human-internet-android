@@ -30,13 +30,15 @@ private enum class Tab { CAMERA, PROFILE }
 
 /**
  * The two tabs, each with its own one-level stack: a tab shows either its root
- * or the detail of one photo opened from it.
+ * or the photo detail opened from it, which can then be swiped through the
+ * rest of the user's photos.
  */
 @Composable
 fun MainTabScreen() {
     val appState = LocalAppState.current
     var tab by rememberSaveable { mutableStateOf(Tab.CAMERA) }
-    // Held by id, so a photo deleted from under an open detail screen closes it.
+    // Which photo each tab's detail screen is showing, if it's open. Held by
+    // id, so it survives the list changing and closes if the photo vanishes.
     var cameraDetailID by rememberSaveable { mutableStateOf<String?>(null) }
     var profileDetailID by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -76,7 +78,11 @@ fun MainTabScreen() {
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(bottom = innerPadding.calculateBottomPadding())) {
             when {
-                detailPhoto != null -> PhotoDetailScreen(photo = detailPhoto, onClose = closeDetail)
+                detailPhoto != null -> PhotoDetailScreen(
+                    photoID = detailPhoto.id,
+                    onPhotoChange = { if (tab == Tab.CAMERA) cameraDetailID = it else profileDetailID = it },
+                    onClose = closeDetail,
+                )
                 tab == Tab.CAMERA -> CameraCaptureScreen(onOpenPhoto = { cameraDetailID = it.id })
                 else -> ProfileScreen(onOpenPhoto = { profileDetailID = it.id })
             }

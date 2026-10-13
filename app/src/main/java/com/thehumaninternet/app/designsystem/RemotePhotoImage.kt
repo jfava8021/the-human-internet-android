@@ -31,6 +31,14 @@ import kotlin.coroutines.cancellation.CancellationException
 private const val THUMBNAIL_MAX_PIXEL_SIZE = 600
 
 /**
+ * Decoded size for a photo shown on its own: at least this on the longer
+ * side, which is more than a phone screen shows (there is no zoom). A
+ * full-resolution bitmap is ~50 MB, and the detail screen keeps three alive
+ * at once so swiping is smooth.
+ */
+private const val DETAIL_MAX_PIXEL_SIZE = 1600
+
+/**
  * Shows a photo: from the local pending copy if there is one, else downloaded
  * from the private `photos` bucket.
  *
@@ -76,7 +84,7 @@ fun RemotePhotoImage(
             val decoded = withContext(Dispatchers.Default) {
                 decodeUpright(
                     data,
-                    maxPixelSize = if (isThumbnail) THUMBNAIL_MAX_PIXEL_SIZE else null,
+                    maxPixelSize = if (isThumbnail) THUMBNAIL_MAX_PIXEL_SIZE else DETAIL_MAX_PIXEL_SIZE,
                     mutable = isProvisional,
                 )?.also { if (isProvisional) PhotoWatermarker.drawMark(context, it) }
             }
