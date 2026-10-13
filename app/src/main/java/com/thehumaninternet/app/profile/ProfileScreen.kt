@@ -38,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -51,6 +52,7 @@ import com.thehumaninternet.app.models.VerificationStatus
 import com.thehumaninternet.app.models.VerifiedPhoto
 import com.thehumaninternet.app.settings.SettingsSheet
 import com.thehumaninternet.app.supabase.PhotoRepository
+import com.thehumaninternet.app.uploads.PhotoLibrarySaver
 import com.thehumaninternet.app.uploads.PhotoUploadQueue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -74,6 +76,8 @@ import androidx.compose.foundation.layout.PaddingValues
 fun ProfileScreen(onOpenPhoto: (VerifiedPhoto) -> Unit) {
     val appState = LocalAppState.current
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current.applicationContext
+    val removeGalleryCopies = rememberGalleryCopyRemover()
     val haptics = LocalHapticFeedback.current
     var showSettings by remember { mutableStateOf(false) }
     var selectedPhotoIDs by remember { mutableStateOf(setOf<String>()) }
@@ -86,7 +90,7 @@ fun ProfileScreen(onOpenPhoto: (VerifiedPhoto) -> Unit) {
         selectedPhotoIDs = if (photo.id in selectedPhotoIDs) selectedPhotoIDs - photo.id else selectedPhotoIDs + photo.id
     }
 
-    fun deleteSelected() {
+    fun deleteSelected(alsoFromDevice: Boolean) {
         val targets = appState.photos.filter { it.id in selectedPhotoIDs }
         isDeleting = true
         scope.launch {
@@ -94,6 +98,7 @@ fun ProfileScreen(onOpenPhoto: (VerifiedPhoto) -> Unit) {
                 PhotoRepository.delete(targets)
                 targets.forEach { PhotoUploadQueue.cancelPendingUpload(it.id, appState) }
                 val deleted = targets.map { it.id }.toSet()
+                if (alsoFromDevice) removeGalleryCopies(deleted) else PhotoLibrarySaver.forgetCopies(context, deleted)
                 appState.photos = appState.photos.filterNot { it.id in deleted }
                 selectedPhotoIDs = emptySet()
             } catch (error: CancellationException) {
@@ -203,26 +208,13 @@ fun ProfileScreen(onOpenPhoto: (VerifiedPhoto) -> Unit) {
     }
 
     if (showDeleteConfirmation) {
-        val count = selectedPhotoIDs.size
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmation = false },
-            title = {
-                Text(
-                    "Are you sure you would like to delete $count photo${if (count == 1) "" else "s"}?",
-                    style = Theme.type.title,
-                )
+        DeletePhotosDialog(
+            photoIDs = selectedPhotoIDs,
+            onDismiss = { showDeleteConfirmation = false },
+            onDelete = { alsoFromDevice ->
+                showDeleteConfirmation = false
+                deleteSelected(alsoFromDevice)
             },
-            text = {
-                Text(
-                    "This permanently deletes them and their verification links. They'll stay in your device's gallery.",
-                    style = Theme.type.body,
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { showDeleteConfirmation = false; deleteSelected() }) { Text("Delete") }
-            },
-            dismissButton = { TextButton(onClick = { showDeleteConfirmation = false }) { Text("Cancel") } },
-            containerColor = Theme.background,
         )
     }
 

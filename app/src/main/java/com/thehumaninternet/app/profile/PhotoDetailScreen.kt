@@ -32,6 +32,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,6 +43,7 @@ import com.thehumaninternet.app.logging.Log
 import com.thehumaninternet.app.models.LocalAppState
 import com.thehumaninternet.app.sharing.ShareSheet
 import com.thehumaninternet.app.supabase.PhotoRepository
+import com.thehumaninternet.app.uploads.PhotoLibrarySaver
 import com.thehumaninternet.app.uploads.PhotoUploadQueue
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
@@ -63,6 +65,8 @@ import com.thehumaninternet.app.designsystem.DesignTokens
 fun PhotoDetailScreen(photoID: String, onPhotoChange: (String) -> Unit, onClose: () -> Unit) {
     val appState = LocalAppState.current
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current.applicationContext
+    val removeGalleryCopies = rememberGalleryCopyRemover()
     val photos = appState.photos
     val index = photos.indexOfFirst { it.id == photoID }
     val photo = photos.getOrNull(index) ?: return
@@ -85,12 +89,13 @@ fun PhotoDetailScreen(photoID: String, onPhotoChange: (String) -> Unit, onClose:
     var isDeleting by remember { mutableStateOf(false) }
     var deleteError by remember { mutableStateOf<String?>(null) }
 
-    fun deletePhoto() {
+    fun deletePhoto(alsoFromDevice: Boolean) {
         isDeleting = true
         scope.launch {
             try {
                 PhotoRepository.delete(photo)
                 PhotoUploadQueue.cancelPendingUpload(photo.id, appState)
+                if (alsoFromDevice) removeGalleryCopies(listOf(photo.id)) else PhotoLibrarySaver.forgetCopies(context, listOf(photo.id))
                 // Move on to the photo that takes its place — the next older
                 // one, or the previous if this was the last — before removing
                 // it, so the screen never points at a photo that's gone.
@@ -154,20 +159,13 @@ fun PhotoDetailScreen(photoID: String, onPhotoChange: (String) -> Unit, onClose:
     }
 
     if (showDeleteConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Delete this photo?", style = Theme.type.title) },
-            text = {
-                Text(
-                    "This permanently deletes the photo and its verification link. It'll stay in your device's gallery.",
-                    style = Theme.type.body,
-                )
+        DeletePhotosDialog(
+            photoIDs = listOf(photo.id),
+            onDismiss = { showDeleteConfirmation = false },
+            onDelete = { alsoFromDevice ->
+                showDeleteConfirmation = false
+                deletePhoto(alsoFromDevice)
             },
-            confirmButton = {
-                TextButton(onClick = { showDeleteConfirmation = false; deletePhoto() }) { Text("Delete") }
-            },
-            dismissButton = { TextButton(onClick = { showDeleteConfirmation = false }) { Text("Cancel") } },
-            containerColor = Theme.background,
         )
     }
 

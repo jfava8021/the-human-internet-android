@@ -77,6 +77,7 @@ import com.thehumaninternet.app.profile.PhotoThumbnail
 import com.thehumaninternet.app.uploads.PhotoLibrarySaver
 import com.thehumaninternet.app.uploads.PhotoUploadQueue
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.cancellation.CancellationException
@@ -182,17 +183,23 @@ private fun CameraView(onOpenPhoto: (VerifiedPhoto) -> Unit) {
         applicationScope.launch {
             try {
                 val imageData = controller.capturePhoto(context)
-                // Fired and forgotten: the gallery copy is a courtesy backup.
-                launch(Dispatchers.IO) {
+                // Never waited on, and never allowed to fail the capture: the
+                // gallery copy is a courtesy backup.
+                val galleryCopy = async(Dispatchers.IO) {
                     try {
                         PhotoLibrarySaver.save(context.applicationContext, imageData)
                     } catch (error: Exception) {
                         Log.camera.error("Gallery backup save failed", error)
+                        null
                     }
                 }
                 val isFirstPhoto = appState.photos.isEmpty()
                 val photo = PhotoUploadQueue.enqueue(imageData, userID, appState)
                 appState.photos = listOf(photo) + appState.photos
+                // So deleting the photo later can offer to remove this copy too.
+                launch {
+                    galleryCopy.await()?.let { PhotoLibrarySaver.recordCopy(context.applicationContext, photo.id, it) }
+                }
                 if (isFirstPhoto) showCongrats = true
             } catch (error: CancellationException) {
                 throw error
