@@ -2,9 +2,7 @@ package com.thehumaninternet.app.devmenu
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 
 /**
  * The developer tools' per-device switches. Per-device on purpose, so one
@@ -17,18 +15,20 @@ object DeveloperPreferences {
     private const val SKIP_C2PA_SIGNING = "skipC2PASigning"
 
     private var preferences: SharedPreferences? = null
+    private val skipC2PASigningState = mutableStateOf(false)
 
-    var skipC2PASigning by mutableStateOf(false)
-        private set
+    /** Setting it also saves it to this phone. */
+    var skipC2PASigning: Boolean
+        get() = skipC2PASigningState.value
+        set(isOn) {
+            skipC2PASigningState.value = isOn
+            preferences?.edit()?.putBoolean(SKIP_C2PA_SIGNING, isOn)?.apply()
+        }
 
     fun initialize(context: Context) {
         val stored = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
         preferences = stored
-        skipC2PASigning = stored.getBoolean(SKIP_C2PA_SIGNING, false)
-    }
-
-    fun saveSkipC2PASigning(isOn: Boolean) {
-        skipC2PASigning = isOn
-        preferences?.edit()?.putBoolean(SKIP_C2PA_SIGNING, isOn)?.apply()
+        // Straight to the state: loading the saved value shouldn't write it back.
+        skipC2PASigningState.value = stored.getBoolean(SKIP_C2PA_SIGNING, false)
     }
 }

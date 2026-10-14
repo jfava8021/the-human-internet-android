@@ -9,12 +9,14 @@ import org.junit.Test
 
 class DeveloperToolsTest {
     @After
-    fun reset() = DeveloperPreferences.saveSkipC2PASigning(false)
+    fun reset() {
+        DeveloperPreferences.skipC2PASigning = false
+    }
 
     @Test
     fun skippingC2PANeedsAnAdmin() {
         val appState = AppState()
-        DeveloperPreferences.saveSkipC2PASigning(true)
+        DeveloperPreferences.skipC2PASigning = true
 
         appState.isAdmin = false
         assertFalse(appState.isC2PASigningSkipped)

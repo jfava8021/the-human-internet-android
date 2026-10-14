@@ -115,7 +115,7 @@ private fun DeveloperToolsPage() {
         }
         Switch(
             checked = DeveloperPreferences.skipC2PASigning,
-            onCheckedChange = { DeveloperPreferences.saveSkipC2PASigning(it) },
+            onCheckedChange = { DeveloperPreferences.skipC2PASigning = it },
         )
     }
 }
