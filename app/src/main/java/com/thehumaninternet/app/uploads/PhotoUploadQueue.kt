@@ -278,8 +278,16 @@ object PhotoUploadQueue {
                         var hasOriginal = false
                         val processedData = when {
                             // Photo Fingerprint off: the raw capture is signed
-                            // exactly as shot, with nothing burned in.
-                            !appState.isWatermarkEnabled -> RemotePhotoSigner.sign(imageData)
+                            // exactly as shot, with nothing burned in — or, with
+                            // C2PA skipped too, uploaded untouched.
+                            !appState.isWatermarkEnabled ->
+                                if (appState.isC2PASigningSkipped) imageData else RemotePhotoSigner.sign(imageData)
+
+                            // The developer tools' "Skip C2PA verification":
+                            // watermarked on device and uploaded as-is, with no
+                            // manifest. Admin-only; see
+                            // `AppState.isC2PASigningSkipped`.
+                            appState.isC2PASigningSkipped -> PhotoWatermarker.watermark(appContext, imageData)
 
                             appState.isServerSideWatermarkEnabled -> {
                                 hasOriginal = true

@@ -20,10 +20,14 @@ Native Kotlin + Jetpack Compose app for "the human internet" — photo verificat
 - **Deleting can also remove the copy in the device's gallery** (Android only; `uploads/PhotoLibrarySaver.kt`, `profile/DeletePhotosDialog.kt`). The delete prompt offers "Delete" (which keeps the gallery copy, as before) or "Delete from app and device" whenever this phone holds a gallery copy of the photo. That is known only for photos taken on this phone since 2026-10-13 — the app records which gallery entry belongs to which photo at capture time, in local preferences, and deliberately never guesses for older ones. On Android 11+ the copy is moved to the gallery's trash rather than erased; after a reinstall Android shows its own approval prompt first, because it no longer counts the old copies as this app's. iOS can't do this without trading its add-only Photos permission for full library access, so it is unchanged.
 - **Sharing**: Reddit and X link intents, Messages with the link pre-filled, Instagram/Facebook via clipboard + image share, and the copyable verification link.
 - **Settings** (minimal): username (read-only), privacy, Log Out.
+- **Developer menu** (`devmenu/`, admins only): shake the phone to open it. `ShakeDetector` reads the accelerometer, since Android has no shake gesture, and only listens while `isAdmin` is true and the app is in the foreground. Two pages:
+  - **Developer tools**: **Skip C2PA verification**, the same per-device switch as iOS (`DeveloperPreferences`, read only through `AppState.isC2PASigningSkipped`, which ANDs in `isAdmin`). Photos are watermarked and uploaded but never sent to `sign-photo`, so they carry no manifest. That also skips Play Integrity, which makes it the one way to test uploads from a debug or emulator build. Unsigned photos look like any other in the database, so delete test captures afterwards. `DeveloperToolsTest` pins the admin check.
+  - **Feature flags**: **view only on Android.** Flags are shared with iOS, so editing them from here waits on Marina's sign-off; change them from the iOS developer menu. The page re-reads the table when opened, and shows "Off (not set)" for a flag with no row so it doesn't look deliberately switched off.
+  - Not ported: the Stripe test-environment switch and Flow Triggers, which wait for Stripe Identity.
 
 ## Not ported yet
 
-Stripe Identity verification, the in-app verification page and `thehumaninternet://photo/{id}` deep links, Preview (as a fellow human / as a lurker), username editing, the verification-page editor, Account Settings (Photo Fingerprint switch, account deletion), the developer menu and its tools, the PP Neue Montreal font flag, and New Relic monitoring.
+Stripe Identity verification, the in-app verification page and `thehumaninternet://photo/{id}` deep links, Preview (as a fellow human / as a lurker), username editing, the verification-page editor, Account Settings (Photo Fingerprint switch, account deletion), editing feature flags from the developer menu, the Stripe test-environment switch and Flow Triggers, the PP Neue Montreal font flag, and New Relic monitoring.
 
 Until Stripe Identity is ported, onboarding's verify step is passed through exactly as a manual Skip is on iOS: `verification_status` stated as `unverified`, then on to the next step.
 
@@ -63,6 +67,7 @@ app/src/main/java/com/thehumaninternet/app/
   designsystem/         <- DesignTokens (generated), HumanTheme, Theme, Components,
                            BrandComponents, StyleguideScreen, PhotoWatermarker, RemotePhotoImage
   root/  onboarding/  camera/  profile/  settings/  sharing/  logging/
+  devmenu/              <- admin-only developer menu (shake to open)
 app/src/test/           <- JVM unit tests pinning the shared contracts
 licenses/               <- third-party licence texts (Inter Display OFL)
 ```
@@ -112,8 +117,8 @@ Pushing to `main` runs the unit tests, builds a signed release bundle and rolls 
 ## Known gaps / to do
 
 1. **Open-source licence notices (not done — required before any public release).** The app bundles third-party code whose licences (Apache 2.0, MIT, SIL OFL) require their notices to ship with it: Kotlin, Jetpack/AndroidX and Compose, CameraX, supabase-kt, Ktor, kotlinx.serialization and coroutines, OkHttp, and the Inter Display font. It needs a "Licences" screen in Settings; Google's `oss-licenses` Gradle plugin can generate the list. Only the Inter licence text is in the repo so far (`licenses/`), and it is not yet shown in-app. **The iOS app has the same gap** (supabase-swift, c2pa-swift, the New Relic agent) — do both together.
-2. **Play Integrity is switched on in the app and deployed in the backend (2026-10-09), but has not yet been seen to pass end to end.** The backend needs the `PLAY_INTEGRITY_SERVICE_ACCOUNT` secret set in Supabase, and the first real request is also the first time the decode call runs against Google.
+2. ~~Play Integrity not yet seen to pass end to end~~ **confirmed working** on a real phone with a Play-installed build (2026-10-13): every photo from an Android account has a signed original in `photo-originals`, which only `sign-photo` writes.
 3. **Sign-in button artwork.** The button is plain text; Google's branding guidelines call for their logo on it.
 4. **Uploads only run while the app is alive.** They resume on next launch, as on iOS, but Android can do better with WorkManager.
-5. **CI is written but has never uploaded a build** — see "Shipping". It needs the five secrets, and Google requires the app's first build to be uploaded by hand.
+5. ~~CI has never uploaded a build~~ **CI ships every push to `main`** to internal testers (latest version code 113, 2026-10-14). The store-icon upload is still refused; see "Shipping".
 6. Everything under "Not ported yet".

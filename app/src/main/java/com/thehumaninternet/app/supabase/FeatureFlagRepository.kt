@@ -18,6 +18,12 @@ object FeatureFlagKey {
      */
     const val SERVER_SIDE_WATERMARK = "server_side_watermark"
 
+    // Not read by this build yet; listed so the developer menu can show them.
+    const val STRIPE_IDENTITY_VERIFICATION = "stripe_identity_verification"
+    const val CUSTOM_VERIFICATION_PAGES = "custom_verification_pages"
+    const val REQUIRE_APP_ATTEST = "require_app_attest"
+    const val NEUE_FONT = "neue_font"
+
     /**
      * What a flag falls back to when the server has nothing this build can
      * use. Kept as a per-flag switch because the safe direction belongs to
@@ -34,15 +40,15 @@ object FeatureFlagKey {
  * Who a flag is switched on for. Mirrors the `feature_flags_audience_check`
  * constraint on `public.feature_flags`.
  */
-enum class FeatureFlagAudience(val rawValue: String) {
+enum class FeatureFlagAudience(val rawValue: String, val label: String) {
     /** On for everyone. */
-    ALL("all"),
+    ALL("all", "All"),
 
     /** On only for users whose `users.is_admin` is true. */
-    ADMIN("admin"),
+    ADMIN("admin", "Admin"),
 
     /** Off for everyone. */
-    OFF("off");
+    OFF("off", "Off");
 
     fun includes(isAdmin: Boolean): Boolean = when (this) {
         ALL -> true

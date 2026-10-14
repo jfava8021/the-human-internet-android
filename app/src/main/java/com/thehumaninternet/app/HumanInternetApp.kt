@@ -1,6 +1,7 @@
 package com.thehumaninternet.app
 
 import android.app.Application
+import com.thehumaninternet.app.devmenu.DeveloperPreferences
 import com.thehumaninternet.app.models.AppState
 import com.thehumaninternet.app.uploads.PhotoUploadQueue
 import com.thehumaninternet.app.verification.PlayIntegrityService
@@ -21,6 +22,7 @@ class HumanInternetApp : Application() {
     override fun onCreate() {
         super.onCreate()
         PhotoUploadQueue.initialize(this)
+        DeveloperPreferences.initialize(this)
         PlayIntegrityService.initialize(this)
     }
 }

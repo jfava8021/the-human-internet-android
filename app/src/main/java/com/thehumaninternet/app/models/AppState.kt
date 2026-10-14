@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.thehumaninternet.app.designsystem.PhotoThumbnailCache
+import com.thehumaninternet.app.devmenu.DeveloperPreferences
 import com.thehumaninternet.app.logging.Log
 import com.thehumaninternet.app.supabase.FeatureFlagAudience
 import com.thehumaninternet.app.supabase.FeatureFlagKey
@@ -43,8 +44,23 @@ class AppState {
      * Resolves a flag against this user. `ADMIN` reads [isAdmin], which
      * [hydrate] fetches *before* the flags, so the two are never out of step.
      */
-    private fun isEnabled(key: String): Boolean =
-        (featureFlags[key] ?: FeatureFlagKey.fallbackAudience(key)).includes(isAdmin)
+    private fun isEnabled(key: String): Boolean = audience(key).includes(isAdmin)
+
+    /**
+     * What the server holds for a flag (or its fallback), as opposed to
+     * whether it's on for this user. For an `ADMIN` flag the two differ.
+     */
+    fun audience(key: String): FeatureFlagAudience =
+        featureFlags[key] ?: FeatureFlagKey.fallbackAudience(key)
+
+    /**
+     * Whether `PhotoUploadQueue` uploads photos unsigned, with no C2PA
+     * manifest. The `isAdmin` check is what stops the per-device switch
+     * outliving the admin who set it: a non-admin signing in on the same
+     * phone must never inherit it.
+     */
+    val isC2PASigningSkipped: Boolean
+        get() = isAdmin && DeveloperPreferences.skipC2PASigning
 
     /**
      * Whether new captures go through `sign-photo`'s capture pipeline (server

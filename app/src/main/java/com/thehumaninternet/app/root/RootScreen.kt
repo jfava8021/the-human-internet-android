@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.thehumaninternet.app.designsystem.Spinner
 import com.thehumaninternet.app.designsystem.Theme
+import com.thehumaninternet.app.devmenu.DeveloperMenuSheet
+import com.thehumaninternet.app.devmenu.ShakeDetector
 import com.thehumaninternet.app.logging.Log
 import com.thehumaninternet.app.models.AppState
 import com.thehumaninternet.app.models.HumanUser
@@ -80,6 +82,16 @@ fun RootScreen() {
 
         appState.isOnboarded -> MainTabScreen()
         else -> OnboardingFlow()
+    }
+
+    var showDeveloperMenu by remember { mutableStateOf(false) }
+
+    // `isAdmin` only becomes true after hydrate, so this is inert before
+    // sign-in, and a non-admin's phone never listens to the accelerometer.
+    ShakeDetector(enabled = appState.isAdmin) { showDeveloperMenu = true }
+
+    if (showDeveloperMenu && appState.isAdmin) {
+        DeveloperMenuSheet(onDismiss = { showDeveloperMenu = false })
     }
 }
 

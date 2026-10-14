@@ -10,6 +10,7 @@ object Log {
     val photos = Category("photos")
     val sharing = Category("sharing")
     val settings = Category("settings")
+    val devMenu = Category("devMenu")
 
     class Category(name: String) {
         private val tag = "THI/$name"
