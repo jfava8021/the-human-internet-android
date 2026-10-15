@@ -25,14 +25,19 @@ import com.thehumaninternet.app.onboarding.OnboardingFlow
 import com.thehumaninternet.app.supabase.supabase
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
+
+/** Waits before each attempt: at once, then twice more before giving up. */
+private val PROFILE_LOAD_DELAYS_MS = listOf(0L, 2_000L, 5_000L)
 
 @Composable
 fun RootScreen() {
     val appState = LocalAppState.current
     val scope = rememberCoroutineScope()
     var isRestoringSession by remember { mutableStateOf(true) }
+    var profileLoadFailed by remember { mutableStateOf(false) }
 
     // Supabase persists the session across launches on its own and reports it
     // here. The same stream delivers a fresh sign-in (the browser returning
@@ -47,7 +52,7 @@ fun RootScreen() {
                     // identity needs the profile loaded.
                     if (userID != null && userID != appState.user.id) {
                         isRestoringSession = true
-                        resolveProfile(appState, userID)
+                        profileLoadFailed = !loadProfile(appState, userID)
                     }
                     isRestoringSession = false
                 }
@@ -56,6 +61,7 @@ fun RootScreen() {
                     // An explicit sign-out has already reset everything, in
                     // which case this is a no-op.
                     if (appState.user.id != null) appState.handleSessionInvalidated()
+                    profileLoadFailed = false
                     isRestoringSession = false
                 }
 
@@ -80,6 +86,28 @@ fun RootScreen() {
             contentAlignment = Alignment.Center,
         ) { Spinner() }
 
+        profileLoadFailed -> ProfileLoadErrorScreen(
+            onRetry = {
+                val userID = appState.user.id ?: return@ProfileLoadErrorScreen
+                scope.launch {
+                    isRestoringSession = true
+                    profileLoadFailed = !loadProfile(appState, userID)
+                    isRestoringSession = false
+                }
+            },
+            onLogOut = {
+                scope.launch {
+                    try {
+                        appState.signOut()
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        Log.auth.error("Sign-out failed", error)
+                    }
+                }
+            },
+        )
+
         appState.isOnboarded -> MainTabScreen()
         else -> OnboardingFlow()
     }
@@ -96,18 +124,30 @@ fun RootScreen() {
 }
 
 /**
- * A session only proves the identity is authenticated — it doesn't say whether
- * onboarding was ever finished. Hydrating their `users` row (and photos) is
- * what makes `isOnboarded` reflect reality.
+ * A session only proves the identity is authenticated; hydrating their `users`
+ * row is what says whether onboarding was ever finished. Retries a couple of
+ * times first, so a launch on a flaky connection doesn't need a tap. Returns
+ * whether it worked.
+ *
+ * On failure the user is **never** shown onboarding (BUG-1): a blank profile
+ * there would be saved over their real one. Instead [RootScreen] shows
+ * [ProfileLoadErrorScreen]. The blank user below keeps only the id, so Log out
+ * can still prune this user's pending uploads; nothing can save it, because the
+ * error screen is all that's on screen.
  */
-private suspend fun resolveProfile(appState: AppState, userID: String) {
-    try {
-        appState.hydrate(userID)
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Exception) {
-        Log.auth.error("Hydrate failed for $userID", error)
-        appState.user = HumanUser(id = userID)
-        appState.isOnboarded = false
+private suspend fun loadProfile(appState: AppState, userID: String): Boolean {
+    for (delayMs in PROFILE_LOAD_DELAYS_MS) {
+        delay(delayMs)
+        try {
+            appState.hydrate(userID)
+            return true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Log.auth.error("Hydrate failed for $userID", error)
+        }
     }
+    appState.user = HumanUser(id = userID)
+    appState.isOnboarded = false
+    return false
 }

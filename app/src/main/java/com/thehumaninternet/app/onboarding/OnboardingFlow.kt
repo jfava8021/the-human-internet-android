@@ -56,7 +56,7 @@ fun OnboardingFlow() {
         val next = updated.copy(onboardingStep = to)
         scope.launch {
             try {
-                UserProfileRepository.upsert(next)
+                UserProfileRepository.saveOnboardingStep(next, to)
                 appState.user = next
                 if (to == OnboardingStep.COMPLETED) appState.isOnboarded = true
             } catch (error: CancellationException) {

@@ -76,7 +76,8 @@ licenses/               <- third-party licence texts (Inter Display OFL)
 
 Mirrors iOS: dumb screens that take callbacks, one coordinator per flow (`OnboardingFlow`, `MainTabScreen`), repositories for side effects, and one `AppState` (Compose snapshot state, provided through `LocalAppState`).
 
-- **`AppState.hydrate(userID)` is the single path** from "authenticated" to "profile + photos + flags loaded", and its only caller is the `sessionStatus` collector in `RootScreen` — which handles cold-launch restore, a fresh sign-in returning from the browser, and a session that went invalid by itself.
+- **`AppState.hydrate(userID)` is the single path** from "authenticated" to "profile + photos + flags loaded", and it's only called from `RootScreen` (its `sessionStatus` collector, plus the Try again button below) — which handles cold-launch restore, a fresh sign-in returning from the browser, and a session that went invalid by itself.
+- **A failed profile load never shows onboarding** (BUG-1). `RootScreen.loadProfile` retries twice, then shows `ProfileLoadErrorScreen` (Try again / Log out). Onboarding with a blank profile used to save that blank row over the user's real one. As a second guard, onboarding saves only the columns each step owns (`UserProfileRepository.saveOnboardingStep`, pinned by `OnboardingSaveTest`), never the whole row.
 - **`AppState` and the upload manifest are main-thread confined.** That is what keeps the manifest's read-modify-write cycles from interleaving; file and network work hops to a background dispatcher and comes back.
 - Navigation is plain state, not a navigation library: two tabs, each with at most one photo detail on top.
 

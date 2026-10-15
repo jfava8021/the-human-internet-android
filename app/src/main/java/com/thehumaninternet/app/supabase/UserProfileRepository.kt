@@ -8,6 +8,9 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 object UserProfileRepository {
     suspend fun fetch(userID: String): HumanUser? =
@@ -18,6 +21,19 @@ object UserProfileRepository {
 
     suspend fun upsert(user: HumanUser) {
         supabase.from("users").upsert(user)
+    }
+
+    /**
+     * Saves moving onboarding on to [to], writing only the columns the step
+     * being left is about, never the whole row. A trip through onboarding
+     * that shouldn't have happened therefore can't reset privacy, the social
+     * handles, or anything else it doesn't own (BUG-1).
+     */
+    suspend fun saveOnboardingStep(user: HumanUser, to: OnboardingStep) {
+        val userID = requireNotNull(user.id) { "Saving onboarding needs a signed-in user" }
+        supabase.from("users").update(onboardingStepColumns(user, to)) {
+            filter { eq("id", userID) }
+        }
     }
 
     /**
@@ -78,4 +94,19 @@ object UserProfileRepository {
             .select(Columns.list(column)) { filter { eq("id", userID) } }
             .decodeList<Row>()
             .firstOrNull()
+}
+
+/** The columns [UserProfileRepository.saveOnboardingStep] writes when moving on to [to]. */
+internal fun onboardingStepColumns(user: HumanUser, to: OnboardingStep): JsonObject = buildJsonObject {
+    put("onboarding_step", to.rawValue)
+    when (to) {
+        // Leaving profile setup.
+        OnboardingStep.VERIFY -> {
+            put("username", user.username)
+            put("profile_icon_index", user.profileIconIndex)
+        }
+        // Leaving identity verification (passed through as a Skip in this build).
+        OnboardingStep.WELCOME_HUMAN -> put("verification_status", user.verificationStatus.rawValue)
+        OnboardingStep.PROFILE, OnboardingStep.COMPLETED -> Unit
+    }
 }
