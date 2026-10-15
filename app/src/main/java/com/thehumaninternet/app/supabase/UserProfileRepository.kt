@@ -2,6 +2,7 @@ package com.thehumaninternet.app.supabase
 
 import com.thehumaninternet.app.models.HumanUser
 import com.thehumaninternet.app.models.OnboardingStep
+import com.thehumaninternet.app.models.PrivacyLevel
 import com.thehumaninternet.app.models.VerificationStatus
 import io.github.jan.supabase.postgrest.exception.PostgrestRestException
 import io.github.jan.supabase.postgrest.from
@@ -29,11 +30,22 @@ object UserProfileRepository {
      * that shouldn't have happened therefore can't reset privacy, the social
      * handles, or anything else it doesn't own (BUG-1).
      */
-    suspend fun saveOnboardingStep(user: HumanUser, to: OnboardingStep) {
-        val userID = requireNotNull(user.id) { "Saving onboarding needs a signed-in user" }
-        supabase.from("users").update(onboardingStepColumns(user, to)) {
-            filter { eq("id", userID) }
-        }
+    suspend fun saveOnboardingStep(user: HumanUser, to: OnboardingStep) =
+        updateColumns(requireNotNull(user.id) { "Saving onboarding needs a signed-in user" }, onboardingStepColumns(user, to))
+
+    /** Settings → Username. Writes that one column; see [updateColumns]. */
+    suspend fun saveUsername(userID: String, username: String) = updateColumns(userID, usernameColumns(username))
+
+    /** Settings → Privacy. Writes that one column; see [updateColumns]. */
+    suspend fun savePrivacy(userID: String, privacy: PrivacyLevel) = updateColumns(userID, privacyColumns(privacy))
+
+    /**
+     * Writes only [columns], never the whole row. Every save outside the
+     * initial row creation goes through here, so a save can't carry stale or
+     * blank values into columns it isn't about (BUG-1).
+     */
+    private suspend fun updateColumns(userID: String, columns: JsonObject) {
+        supabase.from("users").update(columns) { filter { eq("id", userID) } }
     }
 
     /**
@@ -110,3 +122,9 @@ internal fun onboardingStepColumns(user: HumanUser, to: OnboardingStep): JsonObj
         OnboardingStep.PROFILE, OnboardingStep.COMPLETED -> Unit
     }
 }
+
+/** The one column [UserProfileRepository.saveUsername] writes. */
+internal fun usernameColumns(username: String): JsonObject = buildJsonObject { put("username", username) }
+
+/** The one column [UserProfileRepository.savePrivacy] writes. */
+internal fun privacyColumns(privacy: PrivacyLevel): JsonObject = buildJsonObject { put("privacy", privacy.rawValue) }
